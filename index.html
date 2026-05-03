@@ -224,11 +224,26 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); font-family:
 .empty-state p { color: var(--text2); font-size: 14px; line-height: 1.6; }
 
 /* ── Login screen ── */
-#login-screen { position:fixed; inset:0; background:var(--bg); z-index:260; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:32px; }
+#login-screen {
+  position:fixed; inset:0; background:var(--bg); z-index:260;
+  display:flex; flex-direction:column; align-items:center;
+  padding: calc(var(--safe-top) + 20px) 24px calc(var(--safe-bottom) + 20px);
+  overflow-y:auto; overscroll-behavior:contain;
+}
 #login-screen.hidden { display:none; }
-.login-tabs { display:flex; gap:0; background:var(--surface2); border-radius:99px; padding:4px; margin-bottom:28px; }
+.login-header { text-align:center; margin-bottom:16px; }
+.login-tabs { display:flex; gap:0; background:var(--surface2); border-radius:99px; padding:4px; margin-bottom:20px; }
 .login-tab { padding:8px 24px; border-radius:99px; font-size:14px; cursor:pointer; color:var(--text2); transition:all 0.2s; }
 .login-tab.active { background:var(--surface); color:var(--text); box-shadow:0 1px 4px rgba(0,0,0,0.08); }
+/* compact grids for register form */
+#login-screen .color-grid { grid-template-columns:repeat(8,1fr); gap:6px; }
+#login-screen .color-swatch { border-radius:8px; }
+#login-screen .icon-grid { grid-template-columns:repeat(8,1fr); gap:5px; }
+#login-screen .icon-option { border-radius:8px; border-width:1.5px; }
+#login-screen .setup-avatar-preview { width:56px; height:56px; margin-bottom:12px; }
+#login-screen .form-group { margin-bottom:12px; }
+#login-screen .form-label { font-size:11px; margin-bottom:4px; }
+#login-screen .form-input { padding:10px 12px; font-size:14px; }
 
 /* ── Topbar compact for large phones ── */
 #topbar-inner { display:flex; align-items:center; gap:8px; }
@@ -307,21 +322,27 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); font-family:
 
 <!-- Login / Register Screen -->
 <div id="login-screen" class="hidden">
-  <div class="setup-title" style="margin-bottom:6px">印迹</div>
-  <div class="setup-sub">朋友的共享生活地图</div>
-  <div class="login-tabs">
-    <div class="login-tab active" id="tab-register" onclick="switchLoginTab('register')">第一次来</div>
-    <div class="login-tab" id="tab-login" onclick="switchLoginTab('login')">已有账号</div>
+  <div class="login-header">
+    <div class="setup-title" style="font-size:24px;margin-bottom:2px">印迹</div>
+    <div class="setup-sub" style="margin-bottom:14px">朋友的共享生活地图</div>
+    <div class="login-tabs">
+      <div class="login-tab active" id="tab-register" onclick="switchLoginTab('register')">第一次来</div>
+      <div class="login-tab" id="tab-login" onclick="switchLoginTab('login')">已有账号</div>
+    </div>
   </div>
 
   <!-- Register -->
   <div id="register-form" style="width:100%;max-width:360px">
-    <div class="setup-avatar-preview" id="setup-avatar" style="margin-bottom:20px">
-      <svg viewBox="0 0 24 24" fill="none" style="width:36px;height:36px"><circle cx="12" cy="8" r="4" fill="var(--accent)" opacity="0.7"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/></svg>
-    </div>
-    <div class="form-group">
-      <label class="form-label">昵称</label>
-      <input class="form-input" id="setup-name" placeholder="叫什么好呢" maxlength="8">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <div class="setup-avatar-preview" id="setup-avatar" style="margin:0;flex-shrink:0">
+        <svg viewBox="0 0 24 24" fill="none" style="width:28px;height:28px"><circle cx="12" cy="8" r="4" fill="var(--accent)" opacity="0.7"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/></svg>
+      </div>
+      <div style="flex:1">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">昵称</label>
+          <input class="form-input" id="setup-name" placeholder="叫什么好呢" maxlength="8">
+        </div>
+      </div>
     </div>
     <div class="form-group">
       <label class="form-label">密码（下次登录用）</label>
@@ -332,7 +353,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); font-family:
       <div class="color-grid" id="setup-color-grid"></div>
     </div>
     <div class="form-group">
-      <label class="form-label">选一个头像图标</label>
+      <label class="form-label">选一个头像</label>
       <div class="icon-grid" id="setup-icon-grid"></div>
     </div>
     <button class="btn-primary" onclick="saveProfile()">创建账号 →</button>
@@ -340,7 +361,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); font-family:
 
   <!-- Login -->
   <div id="login-form" style="display:none;width:100%;max-width:360px">
-    <div style="font-size:40px;text-align:center;margin-bottom:20px">🔑</div>
+    <div style="font-size:36px;text-align:center;margin-bottom:16px">🔑</div>
     <div class="form-group">
       <label class="form-label">昵称</label>
       <input class="form-input" id="login-name" placeholder="输入你的昵称">
