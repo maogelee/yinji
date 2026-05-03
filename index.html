@@ -1,0 +1,1800 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#faf8f5">
+<title>印迹 · 打卡地图</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #faf8f5;
+  --surface: #ffffff;
+  --surface2: #f2eff9;
+  --border: rgba(0,0,0,0.08);
+  --border2: rgba(0,0,0,0.14);
+  --text: #1a1825;
+  --text2: #6b6880;
+  --text3: #b0adb8;
+  --accent: #E8799A;
+  --accent2: #CBA8E8;
+  --accent-bg: rgba(232,121,154,0.1);
+  --accent2-bg: rgba(203,168,232,0.12);
+  --topbar-bg: rgba(250,248,245,0.92);
+  --radius: 20px;
+  --radius-sm: 12px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f1a; --surface: #1a1a2e; --surface2: #22223a;
+    --border: rgba(255,255,255,0.08); --border2: rgba(255,255,255,0.15);
+    --text: #f0ede8; --text2: #9896a8; --text3: #5a586a;
+    --topbar-bg: rgba(15,15,26,0.92);
+    --accent-bg: rgba(232,121,154,0.15); --accent2-bg: rgba(203,168,232,0.15);
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; background: var(--bg); font-family: 'Noto Sans SC', sans-serif; color: var(--text); overscroll-behavior: none; }
+#app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; position: relative; }
+#map { flex: 1; width: 100%; }
+
+/* ── Topbar ── */
+#topbar { position: absolute; top: 0; left: 0; right: 0; z-index: 10; padding-top: calc(var(--safe-top) + 12px); padding: calc(var(--safe-top) + 12px) 16px 12px; background: linear-gradient(to bottom, var(--topbar-bg) 65%, transparent); }
+#topbar-inner { display: flex; align-items: center; gap: 10px; }
+#search-box { flex: 1; display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border2); border-radius: 99px; padding: 10px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+#search-box input { flex: 1; background: none; border: none; outline: none; color: var(--text); font-size: 14px; font-family: inherit; }
+#search-box input::placeholder { color: var(--text3); }
+.icon-btn { width: 42px; height: 42px; border-radius: 50%; background: var(--surface); border: 1px solid var(--border2); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: background 0.2s; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.icon-btn:active { background: var(--surface2); }
+.icon-btn svg { width: 18px; height: 18px; }
+
+/* ── Filter bar ── */
+#filter-bar { position: absolute; top: calc(var(--safe-top) + 74px); left: 0; right: 0; z-index: 9; padding: 0 16px; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+#filter-bar::-webkit-scrollbar { display: none; }
+.filter-chip { flex-shrink: 0; display: flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 99px; background: var(--surface); border: 1.5px solid var(--border2); font-size: 12px; color: var(--text2); cursor: pointer; transition: all 0.2s; white-space: nowrap; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.filter-chip.active { color: #fff; border-color: transparent; }
+.filter-chip .chip-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+/* ── Bottom sheet ── */
+#bottom-sheet { position: absolute; bottom: 0; left: 0; right: 0; z-index: 20; background: var(--surface); border-radius: var(--radius) var(--radius) 0 0; border-top: 1px solid var(--border); transform: translateY(calc(100% - 90px - var(--safe-bottom))); transition: transform 0.35s cubic-bezier(0.32,0.72,0,1); max-height: 85dvh; display: flex; flex-direction: column; box-shadow: 0 -4px 24px rgba(0,0,0,0.08); }
+#bottom-sheet.open { transform: translateY(0); }
+#bottom-sheet.mid { transform: translateY(calc(100% - 280px - var(--safe-bottom))); }
+#sheet-handle-area { padding: 12px 0 8px; cursor: pointer; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+#sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: 99px; }
+#sheet-tabs { display: flex; gap: 0; padding: 0 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.sheet-tab { flex: 1; padding: 10px; text-align: center; font-size: 13px; color: var(--text2); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
+.sheet-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+#sheet-content { flex: 1; overflow-y: auto; padding: 16px; padding-bottom: calc(16px + var(--safe-bottom)); scrollbar-width: thin; }
+
+/* ── Place list ── */
+.place-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); cursor: pointer; transition: opacity 0.15s; }
+.place-item:active { opacity: 0.7; }
+.place-item:last-child { border-bottom: none; }
+.place-icon { width: 44px; height: 44px; border-radius: var(--radius-sm); background: var(--surface2); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+.place-info { flex: 1; min-width: 0; }
+.place-name { font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.place-meta { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.avatar-mini { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--surface); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 500; margin-right: -6px; color: #fff; }
+
+/* ── Feed card ── */
+.checkin-card { background: var(--surface2); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 10px; }
+.checkin-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 500; color: #fff; flex-shrink: 0; }
+.checkin-who { flex: 1; }
+.checkin-name { font-size: 14px; font-weight: 500; }
+.checkin-time { font-size: 11px; color: var(--text3); margin-top: 1px; }
+.checkin-badge { font-size: 10px; padding: 2px 8px; border-radius: 99px; font-weight: 500; }
+.badge-direct { background: var(--accent-bg); color: var(--accent); }
+.badge-retro { background: var(--accent2-bg); color: var(--accent2); }
+.checkin-place { font-size: 13px; color: var(--text2); margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
+.checkin-note { font-size: 13px; color: var(--text); line-height: 1.6; font-family: 'Noto Serif SC', serif; margin-bottom: 8px; }
+
+/* ── Image grid in feed ── */
+.img-grid { display: grid; gap: 4px; margin-top: 8px; border-radius: var(--radius-sm); overflow: hidden; }
+.img-grid.count-1 { grid-template-columns: 1fr; }
+.img-grid.count-2 { grid-template-columns: 1fr 1fr; }
+.img-grid.count-3 { grid-template-columns: 1fr 1fr 1fr; }
+.img-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; cursor: pointer; }
+
+/* ── Voice player ── */
+.voice-player { display: flex; align-items: center; gap: 8px; background: var(--surface); border-radius: 99px; padding: 8px 14px; margin-top: 8px; }
+.voice-play-btn { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.voice-waveform { flex: 1; height: 3px; background: var(--border2); border-radius: 99px; overflow: hidden; }
+.voice-progress { height: 100%; background: var(--accent); width: 0%; transition: width 0.1s; }
+.voice-duration { font-size: 11px; color: var(--text3); }
+
+/* ── Weather badge ── */
+.weather-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+/* ── FAB ── */
+#fab { position: absolute; bottom: calc(100px + var(--safe-bottom)); right: 20px; z-index: 15; width: 56px; height: 56px; border-radius: 50%; background: var(--accent); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(232,121,154,0.4); transition: transform 0.2s; }
+#fab:active { transform: scale(0.93); }
+#fab svg { width: 24px; height: 24px; color: #fff; }
+
+/* ── Modals ── */
+.modal-overlay { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); display: flex; align-items: flex-end; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+.modal-overlay.show { opacity: 1; pointer-events: all; }
+.modal { background: var(--surface); border-radius: var(--radius) var(--radius) 0 0; width: 100%; max-width: 500px; padding: 24px 20px calc(24px + var(--safe-bottom)); transform: translateY(30px); transition: transform 0.3s cubic-bezier(0.32,0.72,0,1); max-height: 90dvh; overflow-y: auto; }
+.modal-overlay.show .modal { transform: translateY(0); }
+.modal-title { font-family: 'Noto Serif SC', serif; font-size: 18px; color: var(--text); margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+.form-group { margin-bottom: 16px; }
+.form-label { font-size: 12px; color: var(--text2); margin-bottom: 6px; display: block; letter-spacing: 0.04em; }
+.form-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; color: var(--text); font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.2s; }
+.form-input:focus { border-color: rgba(232,121,154,0.4); }
+.form-textarea { resize: none; height: 80px; }
+.btn-primary { width: 100%; padding: 14px; border-radius: var(--radius-sm); background: var(--accent); border: none; color: #fff; font-size: 15px; font-weight: 500; font-family: inherit; cursor: pointer; transition: opacity 0.2s; }
+.btn-primary:active { opacity: 0.85; }
+.btn-secondary { width: 100%; padding: 12px; border-radius: var(--radius-sm); background: transparent; border: 1px solid var(--border); color: var(--text2); font-size: 14px; font-family: inherit; cursor: pointer; margin-top: 10px; transition: background 0.2s; }
+.btn-secondary:active { background: var(--surface2); }
+
+/* ── Color + Icon pickers ── */
+.color-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.color-swatch { aspect-ratio: 1; border-radius: var(--radius-sm); cursor: pointer; border: 2px solid transparent; transition: transform 0.15s, border-color 0.15s; display: flex; align-items: center; justify-content: center; }
+.color-swatch.selected { border-color: #fff; transform: scale(0.9); }
+.color-swatch svg { display: none; }
+.color-swatch.selected svg { display: block; }
+.icon-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 6px; }
+.icon-option { aspect-ratio: 1; border-radius: var(--radius-sm); cursor: pointer; border: 2px solid var(--border); background: var(--surface2); display: flex; align-items: center; justify-content: center; font-size: 22px; transition: all 0.15s; }
+.icon-option.selected { border-color: var(--accent); background: var(--accent-bg); transform: scale(0.92); }
+
+/* ── Selected place ── */
+#selected-place-display { background: var(--surface2); border-radius: var(--radius-sm); padding: 12px 14px; display: flex; align-items: center; gap: 10px; margin-bottom: 16px; cursor: pointer; }
+#selected-place-display.hidden { display: none; }
+.sel-place-icon { font-size: 22px; }
+.sel-place-info .sel-place-name { font-size: 14px; font-weight: 500; }
+.sel-place-info .sel-place-addr { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.sel-place-change { font-size: 11px; color: var(--accent); margin-left: auto; }
+
+/* ── Search results ── */
+.search-results { margin-top: 8px; }
+.search-result-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-sm); cursor: pointer; transition: background 0.15s; }
+.search-result-item:active { background: var(--surface2); }
+.result-info .result-name { font-size: 14px; color: var(--text); }
+.result-info .result-addr { font-size: 12px; color: var(--text2); margin-top: 1px; }
+
+/* ── Image upload ── */
+.img-upload-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.img-thumb { width: 72px; height: 72px; border-radius: var(--radius-sm); object-fit: cover; position: relative; }
+.img-thumb-wrap { position: relative; width: 72px; height: 72px; }
+.img-thumb-wrap img { width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-sm); }
+.img-remove { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; background: #e74c3c; color: #fff; border: none; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
+.img-add-btn { width: 72px; height: 72px; border-radius: var(--radius-sm); border: 1.5px dashed var(--border2); background: var(--surface2); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 24px; color: var(--text3); flex-shrink: 0; }
+
+/* ── Voice recorder ── */
+.voice-record-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 99px; border: 1.5px solid var(--border2); background: var(--surface2); cursor: pointer; font-size: 13px; color: var(--text2); font-family: inherit; transition: all 0.2s; }
+.voice-record-btn.recording { border-color: #e74c3c; background: rgba(231,76,60,0.08); color: #e74c3c; animation: pulse-border 1s infinite; }
+@keyframes pulse-border { 0%,100% { box-shadow: 0 0 0 0 rgba(231,76,60,0.3); } 50% { box-shadow: 0 0 0 6px rgba(231,76,60,0); } }
+.voice-preview { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 99px; background: var(--surface2); border: 1px solid var(--border); margin-top: 8px; }
+.voice-preview-play { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+/* ── Companion ── */
+.companion-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.companion-btn { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 99px; border: 1.5px solid var(--border); background: var(--surface2); cursor: pointer; transition: all 0.18s; color: var(--text2); font-size: 13px; font-family: inherit; }
+.companion-btn .c-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── Markers ── */
+.gmap-marker { display: flex; flex-direction: column; align-items: center; }
+.marker-dot { width: 38px; height: 38px; border-radius: 50%; border: 3px solid #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+.marker-tail { width: 2px; height: 8px; background: #fff; margin-top: -2px; }
+
+/* ── Toast ── */
+#toast { position: fixed; bottom: calc(110px + var(--safe-bottom)); left: 50%; transform: translateX(-50%) translateY(10px); background: var(--surface2); border: 1px solid var(--border); border-radius: 99px; padding: 8px 20px; font-size: 13px; opacity: 0; transition: all 0.3s; z-index: 200; white-space: nowrap; pointer-events: none; }
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── Realtime ping ── */
+#realtime-dot { position: absolute; top: calc(var(--safe-top) + 14px); right: 70px; z-index: 12; width: 8px; height: 8px; border-radius: 50%; background: #2ecc71; box-shadow: 0 0 0 2px rgba(46,204,113,0.3); transition: background 0.3s; }
+#realtime-dot.offline { background: var(--text3); box-shadow: none; }
+#realtime-dot.syncing { animation: ping 0.8s ease-out; }
+@keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(46,204,113,0.6); } 100% { box-shadow: 0 0 0 10px rgba(46,204,113,0); } }
+
+/* ── Loading ── */
+#loading { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 300; transition: opacity 0.5s; }
+#loading.hide { opacity: 0; pointer-events: none; }
+.loading-logo { font-family: 'Noto Serif SC', serif; font-size: 36px; color: var(--accent); margin-bottom: 8px; }
+.loading-sub { font-size: 13px; color: var(--text3); margin-bottom: 40px; }
+.loading-dots { display: flex; gap: 6px; }
+.loading-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+.loading-dot:nth-child(2) { animation-delay: 0.2s; }
+.loading-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes pulse { 0%,100% { opacity: 0.2; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1); } }
+
+/* ── Profile setup ── */
+#profile-setup { position: fixed; inset: 0; background: var(--bg); z-index: 250; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; overflow-y: auto; }
+#profile-setup.hidden { display: none; }
+.setup-title { font-family: 'Noto Serif SC', serif; font-size: 28px; color: var(--accent); margin-bottom: 6px; }
+.setup-sub { font-size: 14px; color: var(--text2); margin-bottom: 24px; text-align: center; }
+.setup-avatar-preview { width: 72px; height: 72px; border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; font-size: 28px; color: #fff; font-weight: 500; transition: background 0.3s; }
+
+/* ── Image lightbox ── */
+#lightbox { position: fixed; inset: 0; z-index: 500; background: rgba(0,0,0,0.92); display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+#lightbox.show { opacity: 1; pointer-events: all; }
+#lightbox img { max-width: 95vw; max-height: 90dvh; object-fit: contain; border-radius: 8px; }
+#lightbox-close { position: absolute; top: calc(var(--safe-top) + 16px); right: 20px; color: #fff; font-size: 28px; cursor: pointer; line-height: 1; }
+
+/* ── Notify badge ── */
+.notify-badge { position: absolute; top: -4px; right: -4px; width: 16px; height: 16px; border-radius: 50%; background: #e74c3c; color: #fff; font-size: 9px; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+
+.empty-state { text-align: center; padding: 40px 20px; }
+.empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; }
+.empty-state p { color: var(--text2); font-size: 14px; line-height: 1.6; }
+
+/* ── Wishlist marker ── */
+.marker-wish { display:flex; flex-direction:column; align-items:center; }
+.marker-wish-dot { width:34px; height:34px; border-radius:50%; border:3px dashed #fff; background:rgba(232,121,154,0.15); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px; box-shadow:0 2px 8px rgba(0,0,0,0.2); }
+.marker-wish-tail { width:2px; height:6px; background:rgba(255,255,255,0.6); margin-top:-1px; }
+
+/* ── Wishlist card in sheet ── */
+.wish-card { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--border); }
+.wish-card:last-child { border-bottom:none; }
+.wish-icon-wrap { width:44px; height:44px; border-radius:var(--radius-sm); background:var(--accent-bg); border:1.5px dashed var(--accent); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
+.wish-info { flex:1; min-width:0; }
+.wish-name { font-size:14px; font-weight:500; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.wish-proposer { font-size:11px; color:var(--text3); margin-top:2px; }
+.wish-checkin-btn { font-size:11px; padding:5px 10px; border-radius:99px; background:var(--accent); color:#fff; border:none; cursor:pointer; font-family:inherit; flex-shrink:0; }
+.wish-remove-btn { font-size:11px; padding:5px 10px; border-radius:99px; background:transparent; color:var(--text3); border:1px solid var(--border2); cursor:pointer; font-family:inherit; flex-shrink:0; }
+
+/* ── Route replay ── */
+#route-bar { position:absolute; top:calc(var(--safe-top) + 74px); left:0; right:0; z-index:8; padding:0 16px; display:none; }
+#route-pill { display:flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--border2); border-radius:99px; padding:8px 14px; box-shadow:0 2px 8px rgba(0,0,0,0.1); width:100%; cursor:pointer; }
+#route-pill svg { flex-shrink:0; }
+#route-label { font-size:13px; color:var(--text2); flex:1; }
+#route-clear { font-size:11px; color:var(--accent); margin-left:auto; }
+
+/* ── Route replay modal ── */
+#route-modal .route-user-row { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 16px; }
+.route-user-btn { display:flex; align-items:center; gap:6px; padding:7px 14px; border-radius:99px; border:1.5px solid var(--border); background:var(--surface2); cursor:pointer; font-size:13px; color:var(--text2); font-family:inherit; transition:all 0.18s; }
+.route-user-btn.selected { border-color:currentColor; font-weight:500; }
+.route-stop { display:flex; gap:12px; padding:10px 0; position:relative; }
+.route-stop::before { content:''; position:absolute; left:15px; top:32px; bottom:-10px; width:2px; background:var(--border); }
+.route-stop:last-child::before { display:none; }
+.route-stop-dot { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; z-index:1; }
+.route-stop-info { flex:1; padding-top:4px; }
+.route-stop-name { font-size:14px; font-weight:500; color:var(--text); }
+.route-stop-time { font-size:11px; color:var(--text3); margin-top:2px; }
+.route-stop-note { font-size:12px; color:var(--text2); margin-top:3px; font-style:italic; }
+
+/* ── Recommend tab ── */
+.rec-section-title { font-size:12px; color:var(--text3); font-weight:500; letter-spacing:0.06em; margin:16px 0 8px; padding-bottom:4px; border-bottom:1px solid var(--border); }
+.rec-card { display:flex; align-items:center; gap:12px; padding:12px; background:var(--surface2); border-radius:var(--radius-sm); margin-bottom:8px; cursor:pointer; transition:opacity 0.15s; }
+.rec-card:active { opacity:0.7; }
+.rec-icon { width:44px; height:44px; border-radius:var(--radius-sm); background:var(--surface); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
+.rec-info { flex:1; min-width:0; }
+.rec-name { font-size:14px; font-weight:500; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.rec-reason { font-size:12px; color:var(--text2); margin-top:2px; line-height:1.4; }
+.rec-tag { font-size:10px; padding:2px 8px; border-radius:99px; background:var(--accent-bg); color:var(--accent); margin-right:4px; }
+.rec-add-wish { font-size:11px; padding:5px 10px; border-radius:99px; border:1px solid var(--border2); background:transparent; color:var(--text2); cursor:pointer; font-family:inherit; flex-shrink:0; }
+
+/* ── Add to wish btn in place list ── */
+.wish-add-icon { width:28px; height:28px; border-radius:50%; border:1px solid var(--border2); background:transparent; display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; transition:all 0.2s; font-size:14px; }
+.wish-add-icon.wished { background:var(--accent-bg); border-color:var(--accent); }
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="loading">
+  <div class="loading-logo">印迹</div>
+  <div class="loading-sub">正在连接…</div>
+  <div class="loading-dots"><div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div></div>
+</div>
+
+<!-- Profile Setup -->
+<div id="profile-setup">
+  <div class="setup-title">欢迎加入</div>
+  <div class="setup-sub">设置你的昵称和颜色<br>让朋友认出你的足迹</div>
+  <div class="setup-avatar-preview" id="setup-avatar">🌸</div>
+  <div style="width:100%;max-width:360px">
+    <div class="form-group">
+      <label class="form-label">昵称</label>
+      <input class="form-input" id="setup-name" placeholder="叫什么好呢" maxlength="6">
+    </div>
+    <div class="form-group">
+      <label class="form-label">选一个颜色</label>
+      <div class="color-grid" id="setup-color-grid"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">选一个地图图标</label>
+      <div class="icon-grid" id="setup-icon-grid"></div>
+    </div>
+    <button class="btn-primary" onclick="saveProfile()">进入印迹</button>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div id="lightbox" onclick="closeLightbox()">
+  <div id="lightbox-close" onclick="closeLightbox()">×</div>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<!-- Main App -->
+<div id="app">
+  <div id="map"></div>
+
+  <!-- Realtime dot -->
+  <div id="realtime-dot" class="offline" title="实时连接状态"></div>
+
+  <!-- Top bar -->
+  <div id="topbar">
+    <div id="topbar-inner">
+      <div id="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;color:var(--text3);flex-shrink:0"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="search-input" placeholder="搜索咖啡店、餐厅…" autocomplete="off">
+      </div>
+      <div class="icon-btn" onclick="openRouteModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text2)"><path d="M3 12h18M3 6l9-3 9 3M3 18l9 3 9-3"/></svg>
+      </div>
+      <div class="icon-btn" onclick="goToMyLocation()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--accent)"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/><circle cx="12" cy="12" r="8" stroke-dasharray="2 2" opacity="0.4"/></svg>
+      </div>
+      <div class="icon-btn" onclick="openProfileModal()" style="position:relative">
+        <div id="topbar-avatar" style="width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter bar -->
+  <div id="filter-bar">
+    <div class="filter-chip active" style="background:var(--accent);border-color:var(--accent);color:#fff" data-filter="all" onclick="setFilter('all',this)">全部</div>
+  </div>
+
+  <!-- Route replay bar (shown when active) -->
+  <div id="route-bar">
+    <div id="route-pill" onclick="openRouteModal()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;color:var(--accent)"><path d="M3 12h18M3 6l9-3 9 3M3 18l9 3 9-3"/></svg>
+      <span id="route-label">选择路线回放</span>
+      <span id="route-clear" onclick="clearRoute(event)">✕ 清除</span>
+    </div>
+  </div>
+
+  <!-- Debug switcher -->
+  <div id="debug-bar" style="position:absolute;top:calc(var(--safe-top) + 80px);right:16px;z-index:50;">
+    <button onclick="toggleDebugPanel()" style="font-size:11px;padding:5px 10px;border-radius:99px;background:var(--surface);border:1px solid var(--border2);color:var(--text2);cursor:pointer;font-family:inherit;box-shadow:0 2px 8px rgba(0,0,0,0.12)">🧪 测试</button>
+    <div id="debug-panel" style="display:none;position:absolute;top:34px;right:0;background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:10px;box-shadow:0 4px 16px rgba(0,0,0,0.15);min-width:180px;">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">切换用户身份</div>
+      <div id="debug-users" style="display:flex;flex-direction:column;gap:5px;margin-bottom:8px"></div>
+      <button onclick="addDebugUser()" style="width:100%;font-size:11px;padding:6px 10px;border-radius:8px;background:var(--surface2);border:1px solid var(--border2);color:var(--text2);cursor:pointer;font-family:inherit">+ 添加测试用户</button>
+    </div>
+  </div>
+
+  <!-- FAB -->
+  <button id="fab" onclick="openCheckinModal()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+  </button>
+
+  <!-- Bottom Sheet -->
+  <div id="bottom-sheet" class="mid">
+    <div id="sheet-handle-area" onclick="toggleSheet()"><div id="sheet-handle"></div></div>
+    <div id="sheet-tabs">
+      <div class="sheet-tab active" data-tab="nearby" onclick="switchTab('nearby',this)">附近</div>
+      <div class="sheet-tab" data-tab="feed" onclick="switchTab('feed',this)">动态</div>
+      <div class="sheet-tab" data-tab="wishlist" onclick="switchTab('wishlist',this)">心愿单</div>
+      <div class="sheet-tab" data-tab="recommend" onclick="switchTab('recommend',this)">推荐</div>
+    </div>
+    <div id="sheet-content">
+      <div id="tab-nearby"></div>
+      <div id="tab-feed" style="display:none"></div>
+      <div id="tab-wishlist" style="display:none"></div>
+      <div id="tab-recommend" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Checkin Modal -->
+<div class="modal-overlay" id="checkin-modal">
+  <div class="modal">
+    <div class="modal-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;color:var(--accent)"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      打卡
+    </div>
+    <div id="selected-place-display" class="hidden" onclick="clearSelectedPlace()">
+      <span class="sel-place-icon" id="sel-icon">☕</span>
+      <div class="sel-place-info"><div class="sel-place-name" id="sel-name">-</div><div class="sel-place-addr" id="sel-addr">-</div></div>
+      <span class="sel-place-change">更换</span>
+    </div>
+    <div id="modal-search-area">
+      <div class="form-group">
+        <label class="form-label">选择地点</label>
+        <input class="form-input" id="modal-search" placeholder="搜索店铺名称…" oninput="modalSearch(this.value)">
+      </div>
+      <div id="modal-search-results" class="search-results"></div>
+      <div style="display:flex;align-items:center;gap:8px;margin:12px 0;">
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <span style="font-size:12px;color:var(--text3)">或</span>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
+      <button class="btn-secondary" onclick="useCurrentLocation()">使用当前位置打卡</button>
+    </div>
+
+    <!-- Weather auto-display -->
+    <div id="checkin-weather" style="display:none;align-items:center;gap:6px;padding:8px 12px;background:var(--surface2);border-radius:var(--radius-sm);margin-bottom:14px;font-size:13px;color:var(--text2)"></div>
+
+    <div class="form-group" style="margin-top:12px">
+      <label class="form-label">留下一句话（可选）</label>
+      <textarea class="form-input form-textarea" id="checkin-note" placeholder="今天的咖啡真好喝…"></textarea>
+    </div>
+
+    <!-- Image upload -->
+    <div class="form-group">
+      <label class="form-label">上传图片（最多3张）</label>
+      <div class="img-upload-row" id="img-upload-row">
+        <div class="img-add-btn" id="img-add-btn" onclick="document.getElementById('img-file-input').click()">+</div>
+      </div>
+      <input type="file" id="img-file-input" accept="image/*" multiple style="display:none" onchange="handleImageSelect(this)">
+    </div>
+
+    <!-- Voice recorder -->
+    <div class="form-group">
+      <label class="form-label">语音留言（可选）</label>
+      <button class="voice-record-btn" id="voice-btn" onclick="toggleRecording()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        <span id="voice-btn-label">按住录音</span>
+      </button>
+      <div id="voice-preview" style="display:none" class="voice-preview">
+        <button class="voice-preview-play" onclick="playVoicePreview()">
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width:12px;height:12px;color:#fff"><path d="M5 3l14 9-14 9V3z"/></svg>
+        </button>
+        <span style="font-size:12px;color:var(--text2);flex:1" id="voice-preview-dur">-</span>
+        <span style="font-size:11px;color:var(--accent);cursor:pointer" onclick="clearVoice()">删除</span>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">同行的人（可选）</label>
+      <div class="companion-row" id="companion-selector"></div>
+    </div>
+
+    <div id="checkin-type-display" style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+      <span style="font-size:12px;color:var(--text2)">打卡方式：</span>
+      <span id="checkin-type-badge" class="checkin-badge badge-direct">直接打卡</span>
+    </div>
+
+    <div id="retro-time-group" class="form-group" style="display:none;">
+      <label class="form-label">补打时间 <span style="color:var(--accent)">*</span></label>
+      <input class="form-input" type="datetime-local" id="retro-datetime" style="color-scheme:light dark">
+      <div style="font-size:11px;color:var(--text3);margin-top:5px">请填写实际到访的时间</div>
+    </div>
+
+    <button class="btn-primary" id="submit-btn" onclick="submitCheckin()">确认打卡</button>
+    <button class="btn-secondary" onclick="closeCheckinModal()">取消</button>
+  </div>
+</div>
+
+<!-- Profile Modal -->
+<div class="modal-overlay" id="profile-modal">
+  <div class="modal">
+    <div class="modal-title">我的设置</div>
+    <div class="setup-avatar-preview" id="profile-modal-avatar" style="margin-bottom:20px"></div>
+    <div class="form-group"><label class="form-label">昵称</label><input class="form-input" id="profile-name-input" maxlength="6"></div>
+    <div class="form-group"><label class="form-label">颜色</label><div class="color-grid" id="profile-color-grid"></div></div>
+    <div class="form-group"><label class="form-label">地图图标</label><div class="icon-grid" id="profile-icon-grid"></div></div>
+    <button class="btn-primary" onclick="updateProfile()">保存</button>
+    <button class="btn-secondary" onclick="closeProfileModal()">取消</button>
+  </div>
+</div>
+
+<!-- Place Detail Modal -->
+<div class="modal-overlay" id="place-modal">
+  <div class="modal">
+    <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:20px">
+      <div style="font-size:32px" id="pm-icon">☕</div>
+      <div style="flex:1">
+        <div style="font-size:17px;font-weight:500;margin-bottom:3px" id="pm-name"></div>
+        <div style="font-size:12px;color:var(--text2)" id="pm-addr"></div>
+        <div style="font-size:12px;color:var(--text3);margin-top:4px" id="pm-meta"></div>
+      </div>
+    </div>
+    <div id="pm-checkins"></div>
+    <button class="btn-primary" onclick="checkinFromPlace()" style="margin-top:16px">在这里打卡</button>
+    <button class="btn-secondary" onclick="closePlaceModal()">关闭</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Route Replay Modal -->
+<div class="modal-overlay" id="route-modal">
+  <div class="modal" id="route-modal-inner">
+    <div class="modal-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;color:var(--accent)"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      路线回放
+    </div>
+    <div class="form-group">
+      <label class="form-label">选择人物</label>
+      <div class="route-user-row" id="route-user-row"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" class="form-group">
+      <div>
+        <label class="form-label">开始日期</label>
+        <input class="form-input" type="date" id="route-date-from">
+      </div>
+      <div>
+        <label class="form-label">结束日期</label>
+        <input class="form-input" type="date" id="route-date-to">
+      </div>
+    </div>
+    <button class="btn-primary" onclick="playRoute()">开始回放</button>
+    <button class="btn-secondary" onclick="closeRouteModal()">取消</button>
+
+    <!-- Route result (shown after play) -->
+    <div id="route-result" style="display:none;margin-top:20px">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:12px" id="route-result-meta"></div>
+      <div id="route-stops"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════
+const SUPABASE_URL = 'https://ztuxyayezsyyukvmonaa.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0dXh5YXllenN5eXVrdm1vbmFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4MTU2MDgsImV4cCI6MjA5MzM5MTYwOH0.KOPMAqv2BiN-scvr6sHhyQdlBFb4rSVgcxrWjHkpuwk';
+const WEATHER_KEY  = 'b0dd5fe489a247548b62b5679d37d48b';
+const GMAPS_KEY    = 'AIzaSyAMDMyRHdCqv4EnaZiHucEQYIoKIhl9mNQ';
+
+// ═══════════════════════════════════════
+// SUPABASE CLIENT
+// ═══════════════════════════════════════
+const supa = {
+  async req(method, path, body) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+      method, headers: {
+        'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json', 'Prefer': 'return=representation',
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!r.ok) { const t = await r.text(); throw new Error(t); }
+    return r.status === 204 ? null : r.json();
+  },
+  get(table, qs='')  { return this.req('GET', `${table}?${qs}`); },
+  post(table, data)  { return this.req('POST', table, data); },
+  patch(table, qs, data) { return this.req('PATCH', `${table}?${qs}`, data); },
+  async upload(bucket, path, file) {
+    const r = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${path}`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': file.type },
+      body: file,
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${path}`;
+  },
+  async uploadBlob(bucket, path, blob, type) {
+    const r = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${path}`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': type },
+      body: blob,
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${path}`;
+  },
+  realtime(table, cb) {
+    const url = `${SUPABASE_URL}/realtime/v1/websocket?vsn=1.0.0&apikey=${SUPABASE_KEY}`.replace('https','wss');
+    const ws = new WebSocket(url);
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ topic:'realtime:public:'+table, event:'phx_join', payload:{}, ref:'1' }));
+      document.getElementById('realtime-dot')?.classList.remove('offline');
+    };
+    ws.onmessage = e => {
+      const d = JSON.parse(e.data);
+      if (d.event === 'INSERT' || d.event === 'UPDATE') {
+        document.getElementById('realtime-dot')?.classList.add('syncing');
+        setTimeout(() => document.getElementById('realtime-dot')?.classList.remove('syncing'), 900);
+        cb(d.event, d.payload?.record || d.payload?.new);
+      }
+    };
+    ws.onclose = () => document.getElementById('realtime-dot')?.classList.add('offline');
+    return ws;
+  }
+};
+
+// ═══════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════
+const COLORS = [
+  { id:'sakura',    hex:'#F4A7B9', name:'樱花粉' },
+  { id:'peach',     hex:'#F9C89B', name:'蜜桃橙' },
+  { id:'butter',    hex:'#F7E07A', name:'奶油黄' },
+  { id:'mint',      hex:'#8FDCC0', name:'薄荷绿' },
+  { id:'periwinkle',hex:'#A9B8F0', name:'矢车菊' },
+  { id:'lilac',     hex:'#CBA8E8', name:'丁香紫' },
+  { id:'rose',      hex:'#E8799A', name:'玫瑰红' },
+  { id:'sky',       hex:'#85CFF5', name:'晴空蓝' },
+];
+const MAP_ICONS = ['🌸','🌼','🍓','🧁','🍵','☕','🍰','🧇','🌈','⭐','🦋','🐱','🐻','🐰','🦊','🐼','💎','🎀','🎈','🎵','🌙','🌺','🍒','🍑'];
+
+let myId = localStorage.getItem('yinji_uid');
+if (!myId) { myId = 'u_' + Date.now(); localStorage.setItem('yinji_uid', myId); }
+
+let allUsers    = {};   // uid → user obj
+let allCheckins = [];   // sorted by time desc
+let allWishlist = [];   // wishlist items
+
+let map, myMarker, markers = [];
+let myLat = 49.2827, myLng = -122.9726; // Vancouver fallback
+let activeFilters = new Set(['all']);
+let sheetState = 'mid';
+let currentSelectedPlace = null;
+let searchTimeout = null;
+let geocoder;
+
+// Image / voice state
+let pendingImages = []; // { file, localUrl }
+let mediaRecorder = null, audioChunks = [], isRecording = false;
+let voiceBlob = null, voiceDuration = 0;
+let voicePreviewAudio = null;
+let currentWeather = null;
+
+let selectedCompanions = new Set();
+let setupSelectedColor = COLORS[7];
+let setupSelectedIcon  = MAP_ICONS[0];
+
+// ═══════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════
+async function boot() {
+  try {
+    const [users, checkins, wishlist] = await Promise.all([
+      supa.get('users', 'select=*'),
+      supa.get('checkins', 'select=*&order=time.desc&limit=200'),
+      supa.get('wishlist', 'select=*&order=created_at.desc').catch(()=>[]),
+    ]);
+    (users||[]).forEach(u => allUsers[u.id] = u);
+    allCheckins = checkins || [];
+    allWishlist = wishlist || [];
+  } catch(e) {
+    console.warn('Supabase load failed, running offline', e);
+  }
+
+  subscribeRealtime();
+
+  document.getElementById('loading').classList.add('hide');
+  if (!allUsers[myId]) {
+    document.getElementById('profile-setup').classList.remove('hidden');
+  } else {
+    updateTopbarAvatar();
+    buildFilterBar();
+    renderDebugBar();
+  }
+}
+
+function subscribeRealtime() {
+  supa.realtime('checkins', (event, record) => {
+    if (!record) return;
+    // map snake_case to camelCase
+    const c = snakeToCamel(record);
+    const idx = allCheckins.findIndex(x => x.id === c.id);
+    if (idx >= 0) allCheckins[idx] = c; else allCheckins.unshift(c);
+    allCheckins.sort((a,b) => b.time - a.time);
+    renderFeed();
+    refreshMarkers();
+    if (c.userId !== myId) showToast(`${allUsers[c.userId]?.name||'朋友'} 刚打卡了 ${c.placeName} 📍`);
+  });
+  supa.realtime('wishlist', (event, record) => {
+    if (!record) return;
+    if (event === 'INSERT') allWishlist.unshift(record);
+    else if (event === 'DELETE') allWishlist = allWishlist.filter(w => w.id !== record.id);
+    refreshWishMarkers();
+    if (document.getElementById('tab-wishlist').style.display !== 'none') renderWishlist();
+  });
+  supa.realtime('users', (event, record) => {
+    if (!record) return;
+    allUsers[record.id] = record;
+    buildFilterBar();
+    renderDebugBar();
+    renderFeed();
+  });
+}
+
+function snakeToCamel(obj) {
+  const map = { user_id:'userId', place_id:'placeId', place_name:'placeName', place_addr:'placeAddr', place_icon:'placeIcon', is_direct:'isDirect', voice_url:'voiceUrl', weather_desc:'weatherDesc', weather_icon:'weatherIcon', weather_temp:'weatherTemp', created_at:'createdAt' };
+  const out = {};
+  for (const [k,v] of Object.entries(obj)) out[map[k]||k] = v;
+  return out;
+}
+function camelToSnake(obj) {
+  const map = { userId:'user_id', placeId:'place_id', placeName:'place_name', placeAddr:'place_addr', placeIcon:'place_icon', isDirect:'is_direct', voiceUrl:'voice_url', weatherDesc:'weather_desc', weatherIcon:'weather_icon', weatherTemp:'weather_temp' };
+  const out = {};
+  for (const [k,v] of Object.entries(obj)) out[map[k]||k] = v;
+  return out;
+}
+
+// ═══════════════════════════════════════
+// PROFILE
+// ═══════════════════════════════════════
+function getMe()    { return allUsers[myId]; }
+function myColor()  { return getMe()?.color || '#E8799A'; }
+
+function renderColorGrid(cid, selId, onSel) {
+  document.getElementById(cid).innerHTML = COLORS.map(c => `
+    <div class="color-swatch ${c.id===selId?'selected':''}" style="background:${c.hex}"
+         onclick="(${onSel.toString()})('${c.id}','${c.hex}')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" style="width:16px;height:16px"><path d="M5 12l5 5 9-9"/></svg>
+    </div>`).join('');
+}
+function renderIconGrid(cid, selIcon, onSel) {
+  document.getElementById(cid).innerHTML = MAP_ICONS.map(ic => `
+    <div class="icon-option ${ic===selIcon?'selected':''}" onclick="(${onSel.toString()})('${ic}')">${ic}</div>`).join('');
+}
+
+function initSetup() {
+  renderColorGrid('setup-color-grid', setupSelectedColor.id, (id,hex) => {
+    setupSelectedColor = COLORS.find(c=>c.id===id);
+    renderColorGrid('setup-color-grid', id, arguments.callee);
+    document.getElementById('setup-avatar').style.background = hex;
+  });
+  renderIconGrid('setup-icon-grid', setupSelectedIcon, (ic) => {
+    setupSelectedIcon = ic;
+    renderIconGrid('setup-icon-grid', ic, arguments.callee);
+    document.getElementById('setup-avatar').textContent = ic;
+  });
+  document.getElementById('setup-avatar').style.background = setupSelectedColor.hex;
+  document.getElementById('setup-avatar').textContent = setupSelectedIcon;
+}
+
+async function saveProfile() {
+  const name = document.getElementById('setup-name').value.trim();
+  if (!name) { showToast('请输入昵称 😊'); return; }
+  const user = { id: myId, name, color: setupSelectedColor.hex, color_id: setupSelectedColor.id, icon: setupSelectedIcon };
+  try {
+    await supa.post('users', user);
+    allUsers[myId] = { ...user, colorId: user.color_id };
+  } catch(e) {
+    // upsert fallback
+    try { await supa.patch('users', `id=eq.${myId}`, user); allUsers[myId] = {...user}; } catch(e2) {}
+  }
+  document.getElementById('profile-setup').classList.add('hidden');
+  updateTopbarAvatar(); buildFilterBar(); renderDebugBar();
+}
+
+function openProfileModal() {
+  const me = getMe(); if (!me) return;
+  document.getElementById('profile-name-input').value = me.name;
+  let pColor = me.color_id || me.colorId, pIcon = me.icon || MAP_ICONS[0];
+  renderColorGrid('profile-color-grid', pColor, (id,hex) => {
+    pColor = id;
+    renderColorGrid('profile-color-grid', id, arguments.callee);
+    document.getElementById('profile-modal-avatar').style.background = hex;
+  });
+  renderIconGrid('profile-icon-grid', pIcon, (ic) => {
+    pIcon = ic;
+    renderIconGrid('profile-icon-grid', ic, arguments.callee);
+    document.getElementById('profile-modal-avatar').textContent = ic;
+  });
+  document.getElementById('profile-modal-avatar').style.background = me.color;
+  document.getElementById('profile-modal-avatar').textContent = me.icon || MAP_ICONS[0];
+  document.getElementById('profile-modal').classList.add('show');
+}
+
+async function updateProfile() {
+  const name = document.getElementById('profile-name-input').value.trim();
+  if (!name) return;
+  const colorEl = document.querySelector('#profile-color-grid .color-swatch.selected');
+  const colorId = colorEl ? COLORS.find(c => colorEl.style.background.includes(c.hex.slice(1)))?.id || getMe()?.color_id : getMe()?.color_id;
+  const color = COLORS.find(c=>c.id===colorId)?.hex || myColor();
+  const iconEl = document.querySelector('#profile-icon-grid .icon-option.selected');
+  const icon = iconEl ? iconEl.textContent.trim() : (getMe()?.icon || MAP_ICONS[0]);
+  const upd = { name, color, color_id: colorId, icon };
+  try { await supa.patch('users', `id=eq.${myId}`, upd); } catch(e) {}
+  allUsers[myId] = { ...getMe(), ...upd };
+  closeProfileModal(); updateTopbarAvatar(); buildFilterBar(); renderDebugBar(); renderFeed();
+  showToast('已更新 ✓');
+}
+
+function closeProfileModal() { document.getElementById('profile-modal').classList.remove('show'); }
+
+function updateTopbarAvatar() {
+  const me = getMe(); if (!me) return;
+  const el = document.getElementById('topbar-avatar');
+  el.style.background = me.color; el.style.fontSize = '15px';
+  el.textContent = me.icon || me.name[0];
+}
+
+// ═══════════════════════════════════════
+// MAP INIT
+// ═══════════════════════════════════════
+function getMapStyles() {
+  const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (dark) return [
+    {elementType:'geometry',stylers:[{color:'#1a1a2e'}]},
+    {elementType:'labels.text.fill',stylers:[{color:'#746855'}]},
+    {elementType:'labels.text.stroke',stylers:[{color:'#242f3e'}]},
+    {featureType:'poi',elementType:'labels.text.fill',stylers:[{color:'#d59563'}]},
+    {featureType:'poi.park',elementType:'geometry',stylers:[{color:'#263c3f'}]},
+    {featureType:'road',elementType:'geometry',stylers:[{color:'#38414e'}]},
+    {featureType:'road.highway',elementType:'geometry',stylers:[{color:'#746855'}]},
+    {featureType:'water',elementType:'geometry',stylers:[{color:'#0d1b2a'}]},
+  ];
+  return [
+    {elementType:'geometry',stylers:[{color:'#f5f0eb'}]},
+    {elementType:'labels.text.fill',stylers:[{color:'#7b6f72'}]},
+    {elementType:'labels.text.stroke',stylers:[{color:'#ffffff'}]},
+    {featureType:'poi.park',elementType:'geometry',stylers:[{color:'#d4eacc'}]},
+    {featureType:'road',elementType:'geometry',stylers:[{color:'#ffffff'}]},
+    {featureType:'road.highway',elementType:'geometry',stylers:[{color:'#f9d9c8'}]},
+    {featureType:'water',elementType:'geometry',stylers:[{color:'#c8dff0'}]},
+  ];
+}
+
+function initMap() {
+  map = new google.maps.Map(document.getElementById('map'), {
+    center: { lat: myLat, lng: myLng }, zoom: 15,
+    disableDefaultUI: true, gestureHandling: 'greedy', styles: getMapStyles(),
+  });
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => map.setOptions({ styles: getMapStyles() }));
+  geocoder = new google.maps.Geocoder();
+
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(pos => {
+      myLat = pos.coords.latitude; myLng = pos.coords.longitude;
+      map.setCenter({ lat: myLat, lng: myLng });
+      placeMyMarker(); loadNearby(); fetchWeather();
+    }, () => { placeMyMarker(); loadNearby(); fetchWeather(); });
+  } else { placeMyMarker(); loadNearby(); fetchWeather(); }
+
+  document.getElementById('search-input').addEventListener('input', e => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => globalSearch(e.target.value), 400);
+  });
+
+  boot().then(() => { refreshMarkers(); renderFeed(); });
+}
+
+function placeMyMarker() {
+  if (myMarker) myMarker.setMap(null);
+  myMarker = new google.maps.Marker({
+    position: { lat: myLat, lng: myLng }, map,
+    icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: '#E8799A', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 },
+    zIndex: 100,
+  });
+}
+
+// ═══════════════════════════════════════
+// WEATHER
+// ═══════════════════════════════════════
+async function fetchWeather() {
+  try {
+    const r = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${myLat}&lon=${myLng}&appid=${WEATHER_KEY}&units=metric&lang=zh_cn`);
+    const d = await r.json();
+    currentWeather = {
+      desc: d.weather[0].description,
+      icon: weatherEmoji(d.weather[0].id),
+      temp: Math.round(d.main.temp),
+    };
+  } catch(e) { currentWeather = null; }
+}
+
+function weatherEmoji(id) {
+  if (id >= 200 && id < 300) return '⛈️';
+  if (id >= 300 && id < 400) return '🌦️';
+  if (id >= 500 && id < 600) return '🌧️';
+  if (id >= 600 && id < 700) return '❄️';
+  if (id >= 700 && id < 800) return '🌫️';
+  if (id === 800) return '☀️';
+  if (id === 801) return '🌤️';
+  if (id <= 804) return '☁️';
+  return '🌡️';
+}
+
+function showCheckinWeather() {
+  const el = document.getElementById('checkin-weather');
+  if (currentWeather) {
+    el.style.display = 'flex';
+    el.innerHTML = `<span style="font-size:18px">${currentWeather.icon}</span><span>${currentWeather.desc}，${currentWeather.temp}°C</span><span style="margin-left:auto;font-size:11px;color:var(--text3)">自动记录天气</span>`;
+  } else { el.style.display = 'none'; }
+}
+
+// ═══════════════════════════════════════
+// NEARBY
+// ═══════════════════════════════════════
+async function loadNearby() {
+  try {
+    const { places } = await google.maps.places.Place.searchNearby({
+      fields: ['id','displayName','formattedAddress','location','rating','types'],
+      locationRestriction: { center: new google.maps.LatLng(myLat, myLng), radius: 800 },
+      includedPrimaryTypes: ['cafe','restaurant','bar','bakery','coffee_shop'],
+      maxResultCount: 20,
+    });
+    renderNearbyList(places || []);
+  } catch(e) {
+    document.getElementById('tab-nearby').innerHTML = '<div class="empty-state"><div class="empty-icon">🗺️</div><p>附近加载失败</p></div>';
+  }
+}
+
+function renderNearbyList(places) {
+  const el = document.getElementById('tab-nearby');
+  if (!places.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">🗺️</div><p>附近暂无结果</p></div>'; return; }
+  el.innerHTML = places.map(p => {
+    const pid = p.id, name = p.displayName||'', addr = p.formattedAddress||'';
+    const types = p.types||[], rating = p.rating;
+    const icon = placeIcon(types);
+    const checkins = allCheckins.filter(c => c.placeId === pid);
+    const seen = new Set();
+    const avatars = checkins.filter(c => { if(seen.has(c.userId)) return false; seen.add(c.userId); return true; })
+      .map(c => allUsers[c.userId]).filter(Boolean).slice(0,4);
+    const isWished = allWishlist.some(w => w.place_id === pid);
+    return `<div class="place-item" onclick="openPlaceDetail('${pid}','${esc(name)}','${esc(addr.split(',').slice(0,2).join(','))}','${icon}')">
+      <div class="place-icon">${icon}</div>
+      <div class="place-info">
+        <div class="place-name">${name}</div>
+        <div class="place-meta">${addr.split(',')[0]}${rating?' · ⭐ '+rating:''}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        ${avatars.length?`<div style="display:flex">${avatars.map(u=>`<div class="avatar-mini" style="background:${u.color}">${u.icon||u.name[0]}</div>`).join('')}</div>`:''}
+        ${checkins.length?`<span style="font-size:11px;color:var(--text3)">${checkins.length}次</span>`:''}
+        <div class="wish-add-icon ${isWished?'wished':''}" onclick="event.stopPropagation();toggleWish('${pid}','${esc(name)}','${esc(addr.split(',')[0])}','${icon}')" title="${isWished?'已加入心愿单':'加入心愿单'}">${isWished?'🤍':'🤍'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function placeIcon(t=[]) {
+  if(t.includes('cafe')||t.includes('coffee_shop')) return '☕';
+  if(t.includes('bakery')) return '🥐';
+  if(t.includes('bar')) return '🍸';
+  if(t.includes('restaurant')) return '🍜';
+  return '📍';
+}
+function esc(s) { return (s||'').replace(/'/g,"&#39;").replace(/"/g,"&quot;"); }
+
+// ═══════════════════════════════════════
+// SEARCH
+// ═══════════════════════════════════════
+async function globalSearch(query) {
+  if (!query.trim()) { loadNearby(); return; }
+  try {
+    const { places } = await google.maps.places.Place.searchByText({
+      textQuery: query, fields: ['id','displayName','formattedAddress','location','rating','types'],
+      locationBias: { center: new google.maps.LatLng(myLat,myLng), radius: 5000 }, maxResultCount: 15,
+    });
+    renderNearbyList(places||[]);
+    if (places?.[0]?.location) map.panTo(places[0].location);
+    if (sheetState==='closed') setSheet('mid');
+  } catch(e) {}
+}
+
+async function modalSearch(query) {
+  const el = document.getElementById('modal-search-results');
+  if (!query.trim()) { el.innerHTML=''; return; }
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(async () => {
+    try {
+      const { suggestions } = await google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+        input: query, origin: new google.maps.LatLng(myLat,myLng),
+        locationBias: { center: new google.maps.LatLng(myLat,myLng), radius: 10000 },
+        includedPrimaryTypes: ['establishment'],
+      });
+      if (!suggestions?.length) { el.innerHTML='<div style="font-size:13px;color:var(--text3);padding:8px">未找到结果</div>'; return; }
+      el.innerHTML = suggestions.slice(0,5).map(s => {
+        const p = s.placePrediction;
+        const main = p.mainText?.text||p.text?.text||'';
+        const sec = p.secondaryText?.text||'';
+        return `<div class="search-result-item" onclick="selectPlace('${p.placeId}','${esc(main)}','${esc(sec)}')">
+          <span style="font-size:18px">📍</span>
+          <div class="result-info"><div class="result-name">${main}</div><div class="result-addr">${sec}</div></div>
+        </div>`;
+      }).join('');
+    } catch(e) { el.innerHTML='<div style="font-size:13px;color:var(--text3);padding:8px">搜索失败</div>'; }
+  }, 300);
+}
+
+async function selectPlace(placeId, name, addr) {
+  currentSelectedPlace = { placeId, name, addr };
+  document.getElementById('sel-name').textContent = name;
+  document.getElementById('sel-addr').textContent = addr;
+  document.getElementById('sel-icon').textContent = '📍';
+  document.getElementById('selected-place-display').classList.remove('hidden');
+  document.getElementById('modal-search-area').style.display = 'none';
+  try {
+    const place = new google.maps.places.Place({ id: placeId });
+    await place.fetchFields({ fields: ['location','types'] });
+    if (place.location) {
+      const d = distKm(myLat, myLng, place.location.lat(), place.location.lng());
+      currentSelectedPlace.isDirect = d < 0.3;
+      currentSelectedPlace.icon = placeIcon(place.types||[]);
+      currentSelectedPlace.lat = place.location.lat();
+      currentSelectedPlace.lng = place.location.lng();
+      document.getElementById('sel-icon').textContent = currentSelectedPlace.icon;
+    }
+  } catch(e) {}
+  updateCheckinTypeDisplay();
+}
+
+function clearSelectedPlace() {
+  currentSelectedPlace = null;
+  document.getElementById('selected-place-display').classList.add('hidden');
+  document.getElementById('modal-search-area').style.display = 'block';
+  document.getElementById('modal-search').value = '';
+  document.getElementById('modal-search-results').innerHTML = '';
+  updateCheckinTypeDisplay();
+}
+
+function useCurrentLocation() {
+  currentSelectedPlace = { placeId:'loc_'+Date.now(), name:'当前位置', addr:`${myLat.toFixed(4)}, ${myLng.toFixed(4)}`, icon:'📍', lat:myLat, lng:myLng, isDirect:true };
+  document.getElementById('sel-name').textContent='当前位置';
+  document.getElementById('sel-addr').textContent='你所在的地方';
+  document.getElementById('sel-icon').textContent='📍';
+  document.getElementById('selected-place-display').classList.remove('hidden');
+  document.getElementById('modal-search-area').style.display='none';
+  updateCheckinTypeDisplay();
+}
+
+function updateCheckinTypeDisplay() {
+  const badge = document.getElementById('checkin-type-badge');
+  const retroGrp = document.getElementById('retro-time-group');
+  const isDirect = !currentSelectedPlace || currentSelectedPlace.isDirect;
+  badge.className = 'checkin-badge '+(isDirect?'badge-direct':'badge-retro');
+  badge.textContent = isDirect ? '直接打卡' : '补打';
+  if (!isDirect) {
+    retroGrp.style.display = 'block';
+    if (!document.getElementById('retro-datetime').value) {
+      const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+      document.getElementById('retro-datetime').value = now.toISOString().slice(0,16);
+    }
+  } else { retroGrp.style.display='none'; document.getElementById('retro-datetime').value=''; }
+}
+
+// ═══════════════════════════════════════
+// IMAGE UPLOAD
+// ═══════════════════════════════════════
+function handleImageSelect(input) {
+  const files = Array.from(input.files);
+  const remaining = 3 - pendingImages.length;
+  files.slice(0, remaining).forEach(f => {
+    const url = URL.createObjectURL(f);
+    pendingImages.push({ file: f, localUrl: url });
+  });
+  renderImagePreview();
+  input.value = '';
+}
+
+function renderImagePreview() {
+  const row = document.getElementById('img-upload-row');
+  row.innerHTML = pendingImages.map((img, i) => `
+    <div class="img-thumb-wrap">
+      <img src="${img.localUrl}" class="img-thumb">
+      <button class="img-remove" onclick="removeImage(${i})">×</button>
+    </div>`).join('');
+  if (pendingImages.length < 3) {
+    row.innerHTML += `<div class="img-add-btn" onclick="document.getElementById('img-file-input').click()">+</div>`;
+  }
+}
+
+function removeImage(i) {
+  URL.revokeObjectURL(pendingImages[i].localUrl);
+  pendingImages.splice(i, 1);
+  renderImagePreview();
+}
+
+async function uploadImages(checkinId) {
+  const urls = [];
+  for (let i=0; i<pendingImages.length; i++) {
+    const { file } = pendingImages[i];
+    const ext = file.name.split('.').pop();
+    const path = `${checkinId}/img_${i}.${ext}`;
+    try { urls.push(await supa.upload('media', path, file)); } catch(e) { console.warn('Image upload failed', e); }
+  }
+  return urls;
+}
+
+// ═══════════════════════════════════════
+// VOICE RECORDER
+// ═══════════════════════════════════════
+let recordStart = 0;
+
+async function toggleRecording() {
+  if (isRecording) { stopRecording(); return; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.onstop = () => {
+      voiceBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      voiceDuration = Math.round((Date.now() - recordStart) / 1000);
+      stream.getTracks().forEach(t => t.stop());
+      showVoicePreview();
+    };
+    mediaRecorder.start();
+    recordStart = Date.now();
+    isRecording = true;
+    const btn = document.getElementById('voice-btn');
+    btn.classList.add('recording');
+    document.getElementById('voice-btn-label').textContent = '录音中… 点击停止';
+  } catch(e) { showToast('无法访问麦克风'); }
+}
+
+function stopRecording() {
+  if (mediaRecorder && isRecording) { mediaRecorder.stop(); isRecording = false; }
+  const btn = document.getElementById('voice-btn');
+  btn.classList.remove('recording');
+  document.getElementById('voice-btn-label').textContent = '按住录音';
+}
+
+function showVoicePreview() {
+  document.getElementById('voice-preview').style.display = 'flex';
+  document.getElementById('voice-preview-dur').textContent = `语音 ${voiceDuration}秒`;
+  voicePreviewAudio = new Audio(URL.createObjectURL(voiceBlob));
+}
+
+function playVoicePreview() {
+  if (voicePreviewAudio) { voicePreviewAudio.currentTime=0; voicePreviewAudio.play(); }
+}
+
+function clearVoice() {
+  voiceBlob = null; voiceDuration = 0;
+  if (voicePreviewAudio) { voicePreviewAudio.pause(); voicePreviewAudio = null; }
+  document.getElementById('voice-preview').style.display = 'none';
+}
+
+async function uploadVoice(checkinId) {
+  if (!voiceBlob) return null;
+  try { return await supa.uploadBlob('media', `${checkinId}/voice.webm`, voiceBlob, 'audio/webm'); } catch(e) { return null; }
+}
+
+// ═══════════════════════════════════════
+// CHECKIN SUBMIT
+// ═══════════════════════════════════════
+function renderCompanionSelector() {
+  const el = document.getElementById('companion-selector');
+  const others = Object.entries(allUsers).filter(([uid]) => uid !== myId);
+  if (!others.length) { el.innerHTML='<span style="font-size:13px;color:var(--text3)">暂无其他成员</span>'; return; }
+  el.innerHTML = others.map(([uid,u]) => `
+    <button class="companion-btn ${selectedCompanions.has(uid)?'selected':''}"
+      style="color:${selectedCompanions.has(uid)?u.color:'var(--text2)'};${selectedCompanions.has(uid)?'border-color:'+u.color:''}"
+      onclick="toggleCompanion('${uid}',this,'${u.color}')">
+      <span class="c-dot" style="background:${u.color}"></span>${u.name}
+    </button>`).join('');
+}
+
+function toggleCompanion(uid, btn, color) {
+  if (selectedCompanions.has(uid)) {
+    selectedCompanions.delete(uid); btn.classList.remove('selected');
+    btn.style.color='var(--text2)'; btn.style.borderColor='';
+  } else {
+    selectedCompanions.add(uid); btn.classList.add('selected');
+    btn.style.color=color; btn.style.borderColor=color;
+  }
+}
+
+function openCheckinModal() {
+  if (!getMe()) { showToast('请先完成设置 😊'); return; }
+  clearSelectedPlace(); selectedCompanions = new Set(); pendingImages = [];
+  voiceBlob = null; clearVoice();
+  document.getElementById('checkin-note').value = '';
+  document.getElementById('retro-datetime').value = '';
+  document.getElementById('retro-time-group').style.display = 'none';
+  document.getElementById('img-upload-row').innerHTML = `<div class="img-add-btn" onclick="document.getElementById('img-file-input').click()">+</div>`;
+  renderCompanionSelector(); showCheckinWeather();
+  document.getElementById('checkin-modal').classList.add('show');
+}
+
+function closeCheckinModal() { document.getElementById('checkin-modal').classList.remove('show'); }
+
+async function openCheckinModalWithPlace(placeId, name, addr, icon) {
+  openCheckinModal();
+  currentSelectedPlace = { placeId, name, addr, icon, isDirect: false };
+  document.getElementById('sel-name').textContent = name;
+  document.getElementById('sel-addr').textContent = addr;
+  document.getElementById('sel-icon').textContent = icon;
+  document.getElementById('selected-place-display').classList.remove('hidden');
+  document.getElementById('modal-search-area').style.display = 'none';
+  try {
+    const place = new google.maps.places.Place({ id: placeId });
+    await place.fetchFields({ fields: ['location'] });
+    if (place.location) {
+      const d = distKm(myLat, myLng, place.location.lat(), place.location.lng());
+      currentSelectedPlace.isDirect = d < 0.3;
+      currentSelectedPlace.lat = place.location.lat(); currentSelectedPlace.lng = place.location.lng();
+    }
+  } catch(e) {}
+  updateCheckinTypeDisplay();
+}
+
+async function submitCheckin() {
+  if (!currentSelectedPlace) { showToast('请选择打卡地点'); return; }
+  const isDirect = currentSelectedPlace.isDirect;
+  let checkinTime = Date.now();
+  if (!isDirect) {
+    const v = document.getElementById('retro-datetime').value;
+    if (!v) { showToast('请填写补打时间 📅'); return; }
+    checkinTime = new Date(v).getTime();
+    if (isNaN(checkinTime)) { showToast('时间格式不正确'); return; }
+  }
+
+  const btn = document.getElementById('submit-btn');
+  btn.textContent = '上传中…'; btn.disabled = true;
+
+  const id = 'c_' + Date.now();
+  let images = [], voiceUrl = null;
+
+  try {
+    [images, voiceUrl] = await Promise.all([uploadImages(id), uploadVoice(id)]);
+  } catch(e) { console.warn('Media upload failed', e); }
+
+  const checkin = {
+    id, user_id: myId, companions: [...selectedCompanions],
+    place_id: currentSelectedPlace.placeId,
+    place_name: currentSelectedPlace.name,
+    place_addr: currentSelectedPlace.addr,
+    place_icon: currentSelectedPlace.icon || '📍',
+    lat: currentSelectedPlace.lat || myLat, lng: currentSelectedPlace.lng || myLng,
+    note: document.getElementById('checkin-note').value.trim(),
+    time: checkinTime, is_direct: isDirect,
+    images, voice_url: voiceUrl,
+    weather_desc: currentWeather?.desc || null,
+    weather_icon: currentWeather?.icon || null,
+    weather_temp: currentWeather?.temp || null,
+  };
+
+  try {
+    await supa.post('checkins', checkin);
+    const c = snakeToCamel(checkin);
+    allCheckins.unshift(c); allCheckins.sort((a,b) => b.time - a.time);
+    // auto-remove from wishlist if present
+    const wished = allWishlist.find(w => w.place_id === checkin.place_id);
+    if (wished) {
+      try { await supa.req('DELETE', `wishlist?id=eq.${wished.id}`); } catch(e) {}
+      allWishlist = allWishlist.filter(w => w.id !== wished.id);
+      showToast('🎉 心愿达成！打卡成功');
+    } else {
+      showToast(isDirect ? '直接打卡成功 ✓' : '补打成功 ✓');
+    }
+    closeCheckinModal(); refreshMarkers(); refreshWishMarkers(); renderFeed(); loadNearby();
+    if (checkin.lat && checkin.lng) map.panTo({ lat: checkin.lat, lng: checkin.lng });
+  } catch(e) {
+    showToast('打卡失败，请重试');
+    console.error(e);
+  }
+  btn.textContent = '确认打卡'; btn.disabled = false;
+  pendingImages = []; voiceBlob = null;
+}
+
+// ═══════════════════════════════════════
+// MARKERS
+// ═══════════════════════════════════════
+function refreshMarkers() {
+  markers.forEach(m => m.setMap(null)); markers = [];
+  const byPlace = {};
+  allCheckins.forEach(c => { if (!byPlace[c.placeId]) byPlace[c.placeId]=[]; byPlace[c.placeId].push(c); });
+  const filtered = activeFilters.has('all') ? null : activeFilters;
+
+  Object.entries(byPlace).forEach(([placeId, checkins]) => {
+    let visible = checkins;
+    if (filtered) visible = checkins.filter(c => { const u=allUsers[c.userId]; return u && filtered.has(u.color); });
+    if (!visible.length) return;
+    const seen = new Set();
+    const colors = visible.map(c=>allUsers[c.userId]?.color).filter(col=>{ if(!col||seen.has(col)) return false; seen.add(col); return true; }).slice(0,3);
+    const c = checkins[0]; if (!c.lat) return;
+    const firstUser = allUsers[visible[0]?.userId];
+    const mIcon = firstUser?.icon || visible[0]?.placeIcon || '📍';
+    const div = document.createElement('div'); div.className='gmap-marker';
+    div.innerHTML=`<div class="marker-dot" style="background:${colors[0]||'#E8799A'}">${visible.length>1?`<span style="font-size:11px;color:#fff;font-weight:600">${visible.length}</span>`:`<span style="font-size:16px;line-height:1">${mIcon}</span>`}</div><div class="marker-tail" style="background:${colors[0]||'#E8799A'}"></div>`;
+    const overlay = new google.maps.OverlayView();
+    const lat=c.lat, lng=c.lng;
+    overlay.onAdd = function() {
+      this.getPanes().overlayMouseTarget.appendChild(div);
+      div.onclick = () => openPlaceDetail(placeId, c.placeName, c.placeAddr, c.placeIcon||'📍');
+    };
+    overlay.draw = function() {
+      const pos = this.getProjection().fromLatLngToDivPixel(new google.maps.LatLng(lat,lng));
+      div.style.cssText=`position:absolute;left:${pos.x-19}px;top:${pos.y-50}px`;
+    };
+    overlay.onRemove = function() { div.remove(); };
+    overlay.setMap(map); markers.push(overlay);
+  });
+}
+
+// ═══════════════════════════════════════
+// FILTER
+// ═══════════════════════════════════════
+function buildFilterBar() {
+  const bar = document.getElementById('filter-bar');
+  const chips = Object.entries(allUsers).map(([uid,u]) => `
+    <div class="filter-chip" id="fc_${uid}" data-uid="${uid}" data-color="${u.color}"
+         onclick="toggleUserFilter('${uid}','${u.color}',this)">
+      <span class="chip-dot" style="background:${u.color}"></span>${u.name}${uid===myId?' (我)':''}
+    </div>`).join('');
+  bar.innerHTML = `<div class="filter-chip active" style="background:var(--accent);border-color:var(--accent);color:#fff" data-filter="all" onclick="setFilter('all',this)">全部</div>${chips}`;
+}
+
+function setFilter(type, el) {
+  activeFilters = new Set(['all']);
+  document.querySelectorAll('.filter-chip').forEach(c => { c.classList.remove('active'); c.style.background=c.style.borderColor=c.style.color=''; });
+  el.classList.add('active'); el.style.background='var(--accent)'; el.style.borderColor='var(--accent)'; el.style.color='#fff';
+  refreshMarkers();
+}
+
+function toggleUserFilter(uid, color, el) {
+  const allChip = document.querySelector('[data-filter="all"]');
+  allChip.classList.remove('active'); allChip.style.background=allChip.style.borderColor=allChip.style.color='';
+  if (activeFilters.has('all')) activeFilters.clear();
+  if (activeFilters.has(color)) {
+    activeFilters.delete(color); el.classList.remove('active'); el.style.background=el.style.borderColor=el.style.color='';
+  } else {
+    activeFilters.add(color); el.classList.add('active'); el.style.background=color; el.style.borderColor=color; el.style.color='#fff';
+  }
+  if (!activeFilters.size) {
+    activeFilters.add('all'); allChip.classList.add('active');
+    allChip.style.background='var(--accent)'; allChip.style.borderColor='var(--accent)'; allChip.style.color='#fff';
+  }
+  refreshMarkers();
+}
+
+// ═══════════════════════════════════════
+// FEED
+// ═══════════════════════════════════════
+function renderFeed() {
+  const el = document.getElementById('tab-feed');
+  if (!allCheckins.length) { el.innerHTML='<div class="empty-state"><div class="empty-icon">🗺️</div><p>还没有打卡记录<br>出去探店吧！</p></div>'; return; }
+  el.innerHTML = allCheckins.slice(0,50).map(c => {
+    const u = allUsers[c.userId]; if (!u) return '';
+    const companions = (c.companions||[]).map(uid=>allUsers[uid]).filter(Boolean);
+    const imgs = c.images||[];
+    const imgHtml = imgs.length ? `<div class="img-grid count-${imgs.length}">${imgs.map(src=>`<img src="${src}" loading="lazy" onclick="openLightbox('${src}')">`).join('')}</div>` : '';
+    const voiceHtml = c.voiceUrl ? `<div class="voice-player" style="margin-top:8px">
+      <button class="voice-play-btn" onclick="playVoice('${c.voiceUrl}',this)">
+        <svg viewBox="0 0 24 24" fill="currentColor" style="width:12px;height:12px;color:#fff"><path d="M5 3l14 9-14 9V3z"/></svg>
+      </button>
+      <div class="voice-waveform"><div class="voice-progress" id="vp_${c.id}"></div></div>
+      <span class="voice-duration">语音</span>
+    </div>` : '';
+    const weatherHtml = c.weatherIcon ? `<div class="weather-badge">${c.weatherIcon} ${c.weatherDesc} ${c.weatherTemp}°C</div>` : '';
+    const companionHtml = companions.length ? `<div style="display:flex;align-items:center;gap:5px;margin-top:6px"><span style="font-size:11px;color:var(--text3)">同行：</span>${companions.map(cu=>`<div class="avatar" style="width:22px;height:22px;font-size:12px;background:${cu.color}">${cu.icon||cu.name[0]}</div>`).join('')}<span style="font-size:12px;color:var(--text2)">${companions.map(cu=>cu.name).join('、')}</span></div>` : '';
+    return `<div class="checkin-card">
+      <div class="checkin-header">
+        <div class="avatar" style="background:${u.color}">${u.icon||u.name[0]}</div>
+        <div class="checkin-who"><div class="checkin-name">${u.name}</div><div class="checkin-time">${formatTime(c.time)}</div></div>
+        <span class="checkin-badge ${c.isDirect?'badge-direct':'badge-retro'}">${c.isDirect?'直接打卡':'补打'}</span>
+      </div>
+      <div class="checkin-place"><span>${c.placeIcon||'📍'}</span><span>${c.placeName}</span>${c.placeAddr?`<span style="color:var(--text3)">· ${c.placeAddr.split(',')[0]}</span>`:''}</div>
+      ${c.note?`<div class="checkin-note">"${c.note}"</div>`:''}
+      ${weatherHtml}${imgHtml}${voiceHtml}${companionHtml}
+    </div>`;
+  }).join('');
+}
+
+function formatTime(ts) {
+  const d = new Date(ts);
+  const mm=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0'), yyyy=d.getFullYear();
+  const hh=String(d.getHours()).padStart(2,'0'), min=String(d.getMinutes()).padStart(2,'0');
+  return `${mm}/${dd}/${yyyy} ${hh}:${min}`;
+}
+
+// ═══════════════════════════════════════
+// VOICE PLAYBACK IN FEED
+// ═══════════════════════════════════════
+let currentAudio = null;
+function playVoice(url, btn) {
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  const audio = new Audio(url); currentAudio = audio;
+  audio.play();
+  audio.ontimeupdate = () => {
+    const prog = document.getElementById('btn_prog_' + btn.dataset.id);
+    if (prog && audio.duration) prog.style.width = (audio.currentTime/audio.duration*100)+'%';
+  };
+}
+
+// ═══════════════════════════════════════
+// PLACE DETAIL
+// ═══════════════════════════════════════
+let currentDetailPlace = null;
+function openPlaceDetail(placeId, name, addr, icon) {
+  currentDetailPlace = { placeId, name, addr, icon };
+  document.getElementById('pm-name').textContent = name;
+  document.getElementById('pm-addr').textContent = addr;
+  document.getElementById('pm-icon').textContent = icon;
+  const checkins = allCheckins.filter(c => c.placeId === placeId);
+  document.getElementById('pm-meta').textContent = checkins.length ? `共 ${checkins.length} 次打卡` : '还没有人打卡';
+  document.getElementById('pm-checkins').innerHTML = checkins.map(c => {
+    const u = allUsers[c.userId]; if (!u) return '';
+    const companions = (c.companions||[]).map(uid=>allUsers[uid]).filter(Boolean);
+    const imgs = (c.images||[]).slice(0,2);
+    return `<div style="display:flex;align-items:flex-start;gap:8px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div class="avatar" style="width:30px;height:30px;font-size:16px;flex-shrink:0;background:${u.color}">${u.icon||u.name[0]}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span style="font-size:13px;font-weight:500">${u.name}</span>
+          ${companions.map(cu=>`<div class="avatar" style="width:18px;height:18px;font-size:11px;background:${cu.color}">${cu.icon||cu.name[0]}</div>`).join('')}
+          <span class="checkin-badge ${c.isDirect?'badge-direct':'badge-retro'}" style="font-size:10px">${c.isDirect?'直接':'补打'}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${formatTime(c.time)}</div>
+        ${c.note?`<div style="font-size:12px;color:var(--text2);margin-top:4px">"${c.note}"</div>`:''}
+        ${imgs.length?`<div style="display:flex;gap:4px;margin-top:6px">${imgs.map(src=>`<img src="${src}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;cursor:pointer" onclick="openLightbox('${src}')">`).join('')}</div>`:''}
+        ${c.weatherIcon?`<div class="weather-badge">${c.weatherIcon} ${c.weatherDesc} ${c.weatherTemp}°C</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('place-modal').classList.add('show');
+}
+
+function closePlaceModal() { document.getElementById('place-modal').classList.remove('show'); }
+function checkinFromPlace() { closePlaceModal(); if(currentDetailPlace) openCheckinModalWithPlace(currentDetailPlace.placeId, currentDetailPlace.name, currentDetailPlace.addr, currentDetailPlace.icon); }
+
+// ═══════════════════════════════════════
+// LIGHTBOX
+// ═══════════════════════════════════════
+function openLightbox(src) { document.getElementById('lightbox-img').src=src; document.getElementById('lightbox').classList.add('show'); }
+function closeLightbox() { document.getElementById('lightbox').classList.remove('show'); }
+
+// ═══════════════════════════════════════
+// SHEET / TABS / LOCATION
+// ═══════════════════════════════════════
+function toggleSheet() { setSheet(sheetState==='mid'?'open':'mid'); }
+function setSheet(s) { const el=document.getElementById('bottom-sheet'); el.classList.remove('open','mid'); if(s==='open'){el.classList.add('open');sheetState='open';}else if(s==='mid'){el.classList.add('mid');sheetState='mid';}else sheetState='closed'; }
+function switchTab(tab, el) {
+  document.querySelectorAll('.sheet-tab').forEach(t=>t.classList.remove('active')); el.classList.add('active');
+  ['nearby','feed','wishlist','recommend'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = t===tab?'block':'none';
+  });
+  if(tab==='feed') renderFeed();
+  if(tab==='wishlist') renderWishlist();
+  if(tab==='recommend') renderRecommend();
+  setSheet('open');
+}
+function goToMyLocation() {
+  if(navigator.geolocation) navigator.geolocation.getCurrentPosition(pos=>{
+    myLat=pos.coords.latitude; myLng=pos.coords.longitude;
+    map.panTo({lat:myLat,lng:myLng}); map.setZoom(16); placeMyMarker();
+  });
+}
+function distKm(la1,lo1,la2,lo2) { const R=6371,dLa=(la2-la1)*Math.PI/180,dLo=(lo2-lo1)*Math.PI/180,a=Math.sin(dLa/2)**2+Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dLo/2)**2; return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); }
+
+// ═══════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════
+function showToast(msg) { const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); }
+
+// ═══════════════════════════════════════
+// DEBUG SWITCHER
+// ═══════════════════════════════════════
+const DEBUG_USERS = [
+  {name:'小樱',colorId:'sakura',color:'#F4A7B9',icon:'🌸'},
+  {name:'蜜桃',colorId:'peach', color:'#F9C89B',icon:'🍑'},
+  {name:'薄荷',colorId:'mint',  color:'#8FDCC0',icon:'🌿'},
+  {name:'丁香',colorId:'lilac', color:'#CBA8E8',icon:'💜'},
+];
+
+function toggleDebugPanel() { const p=document.getElementById('debug-panel'); p.style.display=p.style.display==='none'?'block':'none'; }
+
+function renderDebugBar() {
+  const el=document.getElementById('debug-users'); if(!el) return;
+  el.innerHTML = Object.entries(allUsers).map(([uid,u])=>`
+    <div onclick="switchDebugUser('${uid}')" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;cursor:pointer;background:${uid===myId?'var(--accent-bg)':'transparent'}">
+      <span style="width:10px;height:10px;border-radius:50%;background:${u.color};flex-shrink:0"></span>
+      <span style="font-size:12px;color:${uid===myId?'var(--accent)':'var(--text2)'};font-weight:${uid===myId?500:400}">${u.name}</span>
+      ${uid===myId?'<span style="font-size:10px;color:var(--accent);margin-left:auto">当前 ✓</span>':''}
+    </div>`).join('');
+}
+
+async function switchDebugUser(uid) {
+  myId=uid; localStorage.setItem('yinji_uid',uid);
+  updateTopbarAvatar(); buildFilterBar(); renderFeed(); refreshMarkers(); renderDebugBar(); renderCompanionSelector();
+  showToast(`已切换到 ${allUsers[uid]?.name} 👤`);
+  document.getElementById('debug-panel').style.display='none';
+}
+
+async function addDebugUser() {
+  const existing = Object.keys(allUsers).length;
+  if (existing >= 8) { showToast('已达到最大用户数 8 人'); return; }
+  const preset = DEBUG_USERS[existing % DEBUG_USERS.length];
+  const uid = 'u_debug_' + Date.now();
+  const user = { id:uid, name:preset.name, color:preset.color, color_id:preset.colorId, icon:preset.icon };
+  try { await supa.post('users', user); } catch(e) {}
+  allUsers[uid] = { ...user, colorId: preset.colorId };
+  switchDebugUser(uid);
+}
+
+// ═══════════════════════════════════════
+// WISHLIST
+// ═══════════════════════════════════════
+let wishMarkers = [];
+
+async function toggleWish(placeId, name, addr, icon) {
+  if (!getMe()) { showToast('请先完成设置'); return; }
+  const existing = allWishlist.find(w => w.place_id === placeId);
+  if (existing) {
+    // remove
+    try {
+      await supa.req('DELETE', `wishlist?id=eq.${existing.id}`);
+      allWishlist = allWishlist.filter(w => w.id !== existing.id);
+      showToast('已从心愿单移除');
+    } catch(e) { showToast('操作失败'); }
+  } else {
+    // add
+    const item = { id:'w_'+Date.now(), place_id:placeId, place_name:name, place_addr:addr, place_icon:icon, proposed_by:myId, created_at:new Date().toISOString() };
+    try {
+      await supa.post('wishlist', item);
+      allWishlist.unshift(item);
+      showToast('🤍 已加入心愿单');
+    } catch(e) {
+      // offline fallback
+      allWishlist.unshift(item);
+      showToast('🤍 已加入心愿单（离线）');
+    }
+  }
+  refreshWishMarkers();
+  if (document.getElementById('tab-wishlist').style.display !== 'none') renderWishlist();
+  loadNearby();
+}
+
+function refreshWishMarkers() {
+  wishMarkers.forEach(m => m.setMap(null)); wishMarkers = [];
+  const checkedPlaces = new Set(allCheckins.map(c => c.placeId));
+  allWishlist.filter(w => !checkedPlaces.has(w.place_id)).forEach(w => {
+    // need lat/lng – fetch on demand if missing
+    if (!w.lat || !w.lng) return; // skip if no coords yet
+    const div = document.createElement('div'); div.className='marker-wish';
+    div.innerHTML=`<div class="marker-wish-dot">${w.place_icon||'🤍'}</div><div class="marker-wish-tail"></div>`;
+    const overlay = new google.maps.OverlayView();
+    const lat=w.lat, lng=w.lng;
+    overlay.onAdd=function(){ this.getPanes().overlayMouseTarget.appendChild(div); div.onclick=()=>openWishDetail(w); };
+    overlay.draw=function(){ const p=this.getProjection().fromLatLngToDivPixel(new google.maps.LatLng(lat,lng)); div.style.cssText=`position:absolute;left:${p.x-17}px;top:${p.y-44}px`; };
+    overlay.onRemove=function(){ div.remove(); };
+    overlay.setMap(map); wishMarkers.push(overlay);
+  });
+}
+
+function renderWishlist() {
+  const el = document.getElementById('tab-wishlist');
+  if (!allWishlist.length) {
+    el.innerHTML='<div class="empty-state"><div class="empty-icon">🤍</div><p>还没有心愿单<br>在附近列表点 🤍 添加吧</p></div>';
+    return;
+  }
+  const checkedPlaces = new Set(allCheckins.map(c => c.placeId));
+  const pending = allWishlist.filter(w => !checkedPlaces.has(w.place_id));
+  const done    = allWishlist.filter(w =>  checkedPlaces.has(w.place_id));
+  let html = '';
+  if (pending.length) {
+    html += `<div style="font-size:12px;color:var(--text3);font-weight:500;margin-bottom:8px">想去 · ${pending.length}个</div>`;
+    html += pending.map(w => wishCard(w, false)).join('');
+  }
+  if (done.length) {
+    html += `<div style="font-size:12px;color:var(--text3);font-weight:500;margin:16px 0 8px">已打卡 ✓ · ${done.length}个</div>`;
+    html += done.map(w => wishCard(w, true)).join('');
+  }
+  el.innerHTML = html;
+}
+
+function wishCard(w, done) {
+  const proposer = allUsers[w.proposed_by];
+  return `<div class="wish-card" style="${done?'opacity:0.5':''}">
+    <div class="wish-icon-wrap">${done?'✅':w.place_icon||'📍'}</div>
+    <div class="wish-info">
+      <div class="wish-name">${w.place_name}</div>
+      <div class="wish-proposer">${proposer?proposer.name+'提议':''}${w.place_addr?' · '+w.place_addr:''}</div>
+    </div>
+    ${!done?`<button class="wish-checkin-btn" onclick="checkinFromWish('${w.place_id}','${esc(w.place_name)}','${esc(w.place_addr||'')}','${w.place_icon||'📍'}')">打卡</button>`:''}
+    <button class="wish-remove-btn" onclick="toggleWish('${w.place_id}','${esc(w.place_name)}','${esc(w.place_addr||'')}','${w.place_icon||'📍'}')">移除</button>
+  </div>`;
+}
+
+function checkinFromWish(placeId, name, addr, icon) {
+  switchTab('nearby', document.querySelector('[data-tab="nearby"]'));
+  openCheckinModalWithPlace(placeId, name, addr, icon);
+}
+
+function openWishDetail(w) {
+  const proposer = allUsers[w.proposed_by];
+  showToast(`🤍 ${w.place_name}${proposer?' — '+proposer.name+'想去':''}`);
+}
+
+// ═══════════════════════════════════════
+// ROUTE REPLAY
+// ═══════════════════════════════════════
+let routePolylines = [], routeStopMarkers = [], activeRouteUid = null;
+
+function openRouteModal() {
+  // populate user selector
+  const row = document.getElementById('route-user-row');
+  row.innerHTML = Object.entries(allUsers).map(([uid,u]) => `
+    <button class="route-user-btn ${uid===myId?'selected':''}" data-uid="${uid}"
+      style="${uid===myId?'color:'+u.color+';border-color:'+u.color:''}"
+      onclick="selectRouteUser('${uid}','${u.color}',this)">
+      <span style="font-size:16px">${u.icon||u.name[0]}</span>
+      ${u.name}
+    </button>`).join('');
+
+  // default dates: today
+  const today = new Date().toISOString().slice(0,10);
+  const weekAgo = new Date(Date.now()-7*86400000).toISOString().slice(0,10);
+  document.getElementById('route-date-from').value = weekAgo;
+  document.getElementById('route-date-to').value   = today;
+  document.getElementById('route-result').style.display = 'none';
+  activeRouteUid = myId;
+  document.getElementById('route-modal').classList.add('show');
+}
+
+function closeRouteModal() { document.getElementById('route-modal').classList.remove('show'); }
+
+function selectRouteUser(uid, color, btn) {
+  document.querySelectorAll('.route-user-btn').forEach(b => {
+    b.classList.remove('selected'); b.style.color=''; b.style.borderColor='';
+  });
+  btn.classList.add('selected'); btn.style.color=color; btn.style.borderColor=color;
+  activeRouteUid = uid;
+}
+
+function playRoute() {
+  const uid   = activeRouteUid || myId;
+  const from  = new Date(document.getElementById('route-date-from').value).getTime();
+  const to    = new Date(document.getElementById('route-date-to').value).getTime() + 86400000;
+  const stops = allCheckins
+    .filter(c => c.userId===uid && c.time>=from && c.time<=to && c.lat && c.lng)
+    .sort((a,b) => a.time-b.time);
+
+  if (!stops.length) { showToast('该时间段内没有打卡记录'); return; }
+
+  // clear previous
+  clearRoute();
+
+  const u = allUsers[uid];
+  const color = u?.color || '#E8799A';
+
+  // draw polyline
+  const path = stops.map(s => ({ lat: s.lat, lng: s.lng }));
+  const poly = new google.maps.Polyline({
+    path, map,
+    strokeColor: color, strokeOpacity: 0.85, strokeWeight: 3,
+    icons: [{ icon:{ path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale:3, fillColor:color, fillOpacity:1, strokeColor:'#fff', strokeWeight:1 }, repeat:'80px' }],
+  });
+  routePolylines.push(poly);
+
+  // draw stop markers with sequence numbers
+  stops.forEach((s, i) => {
+    const div = document.createElement('div');
+    div.style.cssText=`position:absolute;width:26px;height:26px;border-radius:50%;background:${color};border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);cursor:pointer`;
+    div.textContent = i+1;
+    const overlay = new google.maps.OverlayView();
+    const lat=s.lat, lng=s.lng;
+    overlay.onAdd=function(){ this.getPanes().overlayMouseTarget.appendChild(div); div.onclick=()=>openPlaceDetail(s.placeId,s.placeName,s.placeAddr,s.placeIcon||'📍'); };
+    overlay.draw=function(){ const p=this.getProjection().fromLatLngToDivPixel(new google.maps.LatLng(lat,lng)); div.style.left=(p.x-13)+'px'; div.style.top=(p.y-13)+'px'; };
+    overlay.onRemove=function(){ div.remove(); };
+    overlay.setMap(map); routeStopMarkers.push(overlay);
+  });
+
+  // fit map to route
+  const bounds = new google.maps.LatLngBounds();
+  stops.forEach(s => bounds.extend({ lat:s.lat, lng:s.lng }));
+  map.fitBounds(bounds, { top:100, bottom:300, left:40, right:40 });
+
+  // show route stops in modal
+  const meta = document.getElementById('route-result-meta');
+  meta.textContent = `${u?.name||'Ta'} · ${stops.length}个打卡点 · ${new Date(stops[0].time).toLocaleDateString('zh-CN')} — ${new Date(stops[stops.length-1].time).toLocaleDateString('zh-CN')}`;
+  document.getElementById('route-stops').innerHTML = stops.map((s,i) => `
+    <div class="route-stop">
+      <div class="route-stop-dot" style="background:${color}">${i+1}</div>
+      <div class="route-stop-info">
+        <div class="route-stop-name">${s.placeIcon||'📍'} ${s.placeName}</div>
+        <div class="route-stop-time">${formatTime(s.time)}</div>
+        ${s.note?`<div class="route-stop-note">"${s.note}"</div>`:''}
+      </div>
+    </div>`).join('');
+  document.getElementById('route-result').style.display='block';
+
+  // update route bar
+  document.getElementById('route-bar').style.display='block';
+  document.getElementById('filter-bar').style.display='none';
+  document.getElementById('route-label').textContent=`${u?.name||'Ta'}的路线 · ${stops.length}站`;
+}
+
+function clearRoute(e) {
+  if (e) e.stopPropagation();
+  routePolylines.forEach(p=>p.setMap(null)); routePolylines=[];
+  routeStopMarkers.forEach(m=>m.setMap(null)); routeStopMarkers=[];
+  document.getElementById('route-bar').style.display='none';
+  document.getElementById('filter-bar').style.display='flex';
+  closeRouteModal();
+}
+
+// ═══════════════════════════════════════
+// SMART RECOMMEND
+// ═══════════════════════════════════════
+async function renderRecommend() {
+  const el = document.getElementById('tab-recommend');
+  el.innerHTML = '<div class="empty-state"><div class="empty-icon">✨</div><p>正在生成推荐…</p></div>';
+
+  // get nearby places for recommendation pool
+  let nearbyPlaces = [];
+  try {
+    const { places } = await google.maps.places.Place.searchNearby({
+      fields: ['id','displayName','formattedAddress','location','rating','types','priceLevel'],
+      locationRestriction: { center: new google.maps.LatLng(myLat, myLng), radius: 1500 },
+      includedPrimaryTypes: ['cafe','restaurant','bar','bakery','coffee_shop'],
+      maxResultCount: 30,
+    });
+    nearbyPlaces = places || [];
+  } catch(e) {}
+
+  const checkedByMe = new Set(allCheckins.filter(c=>c.userId===myId).map(c=>c.placeId));
+  const checkedByAll = new Set(allCheckins.map(c=>c.placeId));
+  const wished = new Set(allWishlist.map(w=>w.place_id));
+
+  // 1. 你们还没去过的附近好店
+  const undiscovered = nearbyPlaces.filter(p => !checkedByAll.has(p.id) && !wished.has(p.id));
+
+  // 2. 朋友去过你没去过的
+  const friendCheckins = allCheckins.filter(c => c.userId !== myId && !checkedByMe.has(c.placeId));
+  const friendPlaceIds = [...new Set(friendCheckins.map(c=>c.placeId))];
+  const friendRecs = friendPlaceIds.map(pid => {
+    const c = allCheckins.find(x=>x.placeId===pid && x.userId!==myId);
+    const friend = allUsers[c?.userId];
+    return { pid, name:c?.placeName, addr:c?.placeAddr, icon:c?.placeIcon||'📍', friend };
+  }).filter(r => r.name).slice(0,4);
+
+  // 3. 根据口味推荐 (most common types → find similar unvisited)
+  const myTypeCount = {};
+  allCheckins.filter(c=>c.userId===myId).forEach(c => {
+    const t = c.placeIcon==='☕'?'cafe':c.placeIcon==='🍜'?'restaurant':'other';
+    myTypeCount[t] = (myTypeCount[t]||0)+1;
+  });
+  const favType = Object.entries(myTypeCount).sort((a,b)=>b[1]-a[1])[0]?.[0] || 'cafe';
+  const tasteRecs = nearbyPlaces.filter(p => {
+    if (checkedByMe.has(p.id)) return false;
+    const t = p.types||[];
+    if (favType==='cafe') return t.includes('cafe')||t.includes('coffee_shop');
+    if (favType==='restaurant') return t.includes('restaurant');
+    return true;
+  }).slice(0,4);
+
+  let html = '';
+
+  if (undiscovered.length) {
+    html += `<div class="rec-section-title">✨ 圈子里还没去过的</div>`;
+    html += undiscovered.slice(0,4).map(p => `
+      <div class="rec-card" onclick="openPlaceDetail('${p.id}','${esc(p.displayName||'')}','${esc((p.formattedAddress||'').split(',').slice(0,2).join(','))}','${placeIcon(p.types||[])}')">
+        <div class="rec-icon">${placeIcon(p.types||[])}</div>
+        <div class="rec-info">
+          <div class="rec-name">${p.displayName||''}</div>
+          <div class="rec-reason"><span class="rec-tag">未探索</span>${(p.formattedAddress||'').split(',')[0]}${p.rating?' · ⭐'+p.rating:''}</div>
+        </div>
+        <button class="rec-add-wish" onclick="event.stopPropagation();toggleWish('${p.id}','${esc(p.displayName||'')}','${esc((p.formattedAddress||'').split(',')[0])}','${placeIcon(p.types||[])}')">🤍</button>
+      </div>`).join('');
+  }
+
+  if (friendRecs.length) {
+    html += `<div class="rec-section-title">👭 朋友去过你还没去的</div>`;
+    html += friendRecs.map(r => `
+      <div class="rec-card" onclick="openCheckinModalWithPlace('${r.pid}','${esc(r.name)}','${esc(r.addr||'')}','${r.icon}')">
+        <div class="rec-icon">${r.icon}</div>
+        <div class="rec-info">
+          <div class="rec-name">${r.name}</div>
+          <div class="rec-reason"><span class="rec-tag">${r.friend?.name||'朋友'}去过</span>${r.addr||''}</div>
+        </div>
+        <button class="rec-add-wish" onclick="event.stopPropagation();toggleWish('${r.pid}','${esc(r.name)}','${esc(r.addr||'')}','${r.icon}')">🤍</button>
+      </div>`).join('');
+  }
+
+  if (tasteRecs.length) {
+    const typeLabel = favType==='cafe'?'咖啡控':favType==='restaurant'?'美食家':'探索者';
+    html += `<div class="rec-section-title">☕ 根据你的口味（${typeLabel}）</div>`;
+    html += tasteRecs.map(p => `
+      <div class="rec-card" onclick="openPlaceDetail('${p.id}','${esc(p.displayName||'')}','${esc((p.formattedAddress||'').split(',').slice(0,2).join(','))}','${placeIcon(p.types||[])}')">
+        <div class="rec-icon">${placeIcon(p.types||[])}</div>
+        <div class="rec-info">
+          <div class="rec-name">${p.displayName||''}</div>
+          <div class="rec-reason"><span class="rec-tag">符合口味</span>${(p.formattedAddress||'').split(',')[0]}${p.rating?' · ⭐'+p.rating:''}</div>
+        </div>
+        <button class="rec-add-wish" onclick="event.stopPropagation();toggleWish('${p.id}','${esc(p.displayName||'')}','${esc((p.formattedAddress||'').split(',')[0])}','${placeIcon(p.types||[])}')">🤍</button>
+      </div>`).join('');
+  }
+
+  if (!html) html = '<div class="empty-state"><div class="empty-icon">✨</div><p>多打几次卡之后<br>这里会出现个性化推荐</p></div>';
+  el.innerHTML = html;
+}
+
+// ── Init ──
+initSetup();
+</script>
+<script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAMDMyRHdCqv4EnaZiHucEQYIoKIhl9mNQ&v=beta&libraries=places&callback=initMap"></script>
+</body>
+</html>
