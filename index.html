@@ -1377,8 +1377,15 @@ async function submitCheckin() {
     closeCheckinModal(); refreshMarkers(); refreshWishMarkers(); renderFeed(); loadNearby();
     if (checkin.lat && checkin.lng) map.panTo({ lat: checkin.lat, lng: checkin.lng });
   } catch(e) {
-    showToast('打卡失败，请重试');
-    console.error(e);
+    console.error('打卡失败详情:', e);
+    const msg = e?.message || '';
+    if (msg.includes('companions') || msg.includes('images')) {
+      showToast('数据格式问题，请运行 SQL 修复');
+    } else if (msg.includes('password_hash')) {
+      showToast('请先运行 SQL 更新表结构');
+    } else {
+      showToast('打卡失败：' + (msg.slice(0,40) || '请重试'));
+    }
   }
   btn.textContent = '确认打卡'; btn.disabled = false;
   pendingImages = []; voiceBlob = null;
