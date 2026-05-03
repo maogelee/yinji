@@ -837,9 +837,12 @@ async function doLogin() {
     localStorage.setItem('yinji_uid', myId);
     allUsers[myId] = user;
     document.getElementById('login-screen').classList.add('hidden');
-    updateTopbarAvatar(); buildFilterBar(); renderDebugBar();
+    updateTopbarAvatar();
+    buildFilterBar();
+    renderFeed();
+    if (map) { refreshMarkers(); refreshWishMarkers(); }
     showToast('欢迎回来，' + user.name + ' 🎉');
-  } catch(e) { showToast('登录失败，请重试'); console.error(e); }
+  } catch(e) { showToast('登录失败：' + (e?.message||'请重试')); console.error(e); }
 }
 
 async function hashPass(pass) {
@@ -867,17 +870,22 @@ function initSetup() {
 
 async function saveProfile() {
   const name = document.getElementById('setup-name').value.trim();
+  const pass = document.getElementById('setup-password')?.value || '';
   if (!name) { showToast('请输入昵称 😊'); return; }
-  const user = { id: myId, name, color: setupSelectedColor.hex, color_id: setupSelectedColor.id, icon: setupSelectedIcon };
+  if (pass && pass.length < 4) { showToast('密码至少4位'); return; }
+  const password_hash = pass ? await hashPass(pass) : null;
+  const user = { id: myId, name, color: setupSelectedColor.hex, color_id: setupSelectedColor.id, icon: setupSelectedIcon, password_hash };
   try {
     await supa.post('users', user);
     allUsers[myId] = { ...user, colorId: user.color_id };
   } catch(e) {
-    // upsert fallback
     try { await supa.patch('users', `id=eq.${myId}`, user); allUsers[myId] = {...user}; } catch(e2) {}
   }
   document.getElementById('login-screen').classList.add('hidden');
-  updateTopbarAvatar(); buildFilterBar(); renderDebugBar();
+  updateTopbarAvatar();
+  buildFilterBar();
+  renderFeed();
+  if (map) { refreshMarkers(); refreshWishMarkers(); }
 }
 
 function openProfileModal() {
@@ -1374,8 +1382,10 @@ async function submitCheckin() {
     } else {
       showToast(isDirect ? '直接打卡成功 ✓' : '补打成功 ✓');
     }
-    closeCheckinModal(); refreshMarkers(); refreshWishMarkers(); renderFeed(); loadNearby();
-    if (checkin.lat && checkin.lng) map.panTo({ lat: checkin.lat, lng: checkin.lng });
+    closeCheckinModal();
+    if (map) { refreshMarkers(); refreshWishMarkers(); }
+    renderFeed(); loadNearby();
+    if (checkin.lat && checkin.lng && map) map.panTo({ lat: checkin.lat, lng: checkin.lng });
   } catch(e) {
     console.error('打卡失败详情:', e);
     const msg = e?.message || '';
@@ -1410,7 +1420,7 @@ function refreshMarkers() {
     const firstUser = allUsers[visible[0]?.userId];
     const mIconSvg = firstUser ? '<span style="display:flex;width:20px;height:20px">'+getIconSvg(firstUser.icon||MAP_ICONS[0].id)+'</span>' : (visible[0]?.placeIcon||'📍');
     const div = document.createElement('div'); div.className='gmap-marker';
-    div.innerHTML=`<div class="marker-dot" style="background:${colors[0]||'#E8799A'}">${visible.length>1?`<span style="font-size:11px;color:#fff;font-weight:600">${visible.length}</span>`:`<span style="font-size:16px;line-height:1">${mIcon}</span>`}</div><div class="marker-tail" style="background:${colors[0]||'#E8799A'}"></div>`;
+    div.innerHTML=`<div class="marker-dot" style="background:${colors[0]||'#E8799A'}">${visible.length>1?`<span style="font-size:11px;color:#fff;font-weight:600">${visible.length}</span>`:mIconSvg}</div><div class="marker-tail" style="background:${colors[0]||'#E8799A'}"></div>`;
     const overlay = new google.maps.OverlayView();
     const lat=c.lat, lng=c.lng;
     overlay.onAdd = function() {
