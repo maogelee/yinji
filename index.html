@@ -223,6 +223,24 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); font-family:
 .empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; }
 .empty-state p { color: var(--text2); font-size: 14px; line-height: 1.6; }
 
+/* ── Login screen ── */
+#login-screen { position:fixed; inset:0; background:var(--bg); z-index:260; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:32px; }
+#login-screen.hidden { display:none; }
+.login-tabs { display:flex; gap:0; background:var(--surface2); border-radius:99px; padding:4px; margin-bottom:28px; }
+.login-tab { padding:8px 24px; border-radius:99px; font-size:14px; cursor:pointer; color:var(--text2); transition:all 0.2s; }
+.login-tab.active { background:var(--surface); color:var(--text); box-shadow:0 1px 4px rgba(0,0,0,0.08); }
+
+/* ── Topbar compact for large phones ── */
+#topbar-inner { display:flex; align-items:center; gap:8px; }
+#search-box { flex:1; min-width:0; }
+.icon-btn { width:38px; height:38px; flex-shrink:0; }
+
+/* ── Icon selector (SVG-based) ── */
+.icon-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-top:6px; }
+.icon-option { aspect-ratio:1; border-radius:10px; cursor:pointer; border:2px solid var(--border); background:var(--surface2); display:flex; align-items:center; justify-content:center; transition:all 0.15s; padding:6px; }
+.icon-option svg { width:100%; height:100%; }
+.icon-option.selected { border-color:var(--accent); background:var(--accent-bg); transform:scale(0.92); }
+
 /* ── Wishlist marker ── */
 .marker-wish { display:flex; flex-direction:column; align-items:center; }
 .marker-wish-dot { width:34px; height:34px; border-radius:50%; border:3px dashed #fff; background:rgba(232,121,154,0.15); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px; box-shadow:0 2px 8px rgba(0,0,0,0.2); }
@@ -287,25 +305,52 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); font-family:
   <div class="loading-dots"><div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div></div>
 </div>
 
-<!-- Profile Setup -->
-<div id="profile-setup">
-  <div class="setup-title">欢迎加入</div>
-  <div class="setup-sub">设置你的昵称和颜色<br>让朋友认出你的足迹</div>
-  <div class="setup-avatar-preview" id="setup-avatar">🌸</div>
-  <div style="width:100%;max-width:360px">
+<!-- Login / Register Screen -->
+<div id="login-screen" class="hidden">
+  <div class="setup-title" style="margin-bottom:6px">印迹</div>
+  <div class="setup-sub">朋友的共享生活地图</div>
+  <div class="login-tabs">
+    <div class="login-tab active" id="tab-register" onclick="switchLoginTab('register')">第一次来</div>
+    <div class="login-tab" id="tab-login" onclick="switchLoginTab('login')">已有账号</div>
+  </div>
+
+  <!-- Register -->
+  <div id="register-form" style="width:100%;max-width:360px">
+    <div class="setup-avatar-preview" id="setup-avatar" style="margin-bottom:20px">
+      <svg viewBox="0 0 24 24" fill="none" style="width:36px;height:36px"><circle cx="12" cy="8" r="4" fill="var(--accent)" opacity="0.7"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
     <div class="form-group">
       <label class="form-label">昵称</label>
-      <input class="form-input" id="setup-name" placeholder="叫什么好呢" maxlength="6">
+      <input class="form-input" id="setup-name" placeholder="叫什么好呢" maxlength="8">
+    </div>
+    <div class="form-group">
+      <label class="form-label">密码（下次登录用）</label>
+      <input class="form-input" type="password" id="setup-password" placeholder="至少4位" maxlength="20">
     </div>
     <div class="form-group">
       <label class="form-label">选一个颜色</label>
       <div class="color-grid" id="setup-color-grid"></div>
     </div>
     <div class="form-group">
-      <label class="form-label">选一个地图图标</label>
+      <label class="form-label">选一个头像图标</label>
       <div class="icon-grid" id="setup-icon-grid"></div>
     </div>
-    <button class="btn-primary" onclick="saveProfile()">进入印迹</button>
+    <button class="btn-primary" onclick="saveProfile()">创建账号 →</button>
+  </div>
+
+  <!-- Login -->
+  <div id="login-form" style="display:none;width:100%;max-width:360px">
+    <div style="font-size:40px;text-align:center;margin-bottom:20px">🔑</div>
+    <div class="form-group">
+      <label class="form-label">昵称</label>
+      <input class="form-input" id="login-name" placeholder="输入你的昵称">
+    </div>
+    <div class="form-group">
+      <label class="form-label">密码</label>
+      <input class="form-input" type="password" id="login-password" placeholder="输入密码">
+    </div>
+    <button class="btn-primary" onclick="doLogin()">登录 →</button>
+    <div style="text-align:center;margin-top:12px;font-size:13px;color:var(--text3)">忘记密码？联系圈主重置</div>
   </div>
 </div>
 
@@ -326,17 +371,17 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); font-family:
   <div id="topbar">
     <div id="topbar-inner">
       <div id="search-box">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;color:var(--text3);flex-shrink:0"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input id="search-input" placeholder="搜索咖啡店、餐厅…" autocomplete="off">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;color:var(--text3);flex-shrink:0"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="search-input" placeholder="搜索…" autocomplete="off">
       </div>
-      <div class="icon-btn" onclick="openRouteModal()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text2)"><path d="M3 12h18M3 6l9-3 9 3M3 18l9 3 9-3"/></svg>
+      <div class="icon-btn" onclick="goToMyLocation()" title="定位">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:17px;height:17px;color:var(--accent)"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>
       </div>
-      <div class="icon-btn" onclick="goToMyLocation()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--accent)"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/><circle cx="12" cy="12" r="8" stroke-dasharray="2 2" opacity="0.4"/></svg>
+      <div class="icon-btn" onclick="openRouteModal()" title="路线回放">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:17px;height:17px;color:var(--text2)"><path d="M3 17c3-3 6 3 9 0s6-3 9 0"/><path d="M3 11c3-3 6 3 9 0s6-3 9 0"/><path d="M3 5c3-3 6 3 9 0s6-3 9 0"/></svg>
       </div>
-      <div class="icon-btn" onclick="openProfileModal()" style="position:relative">
-        <div id="topbar-avatar" style="width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;"></div>
+      <div class="icon-btn" onclick="openProfileModal()" title="我的设置" style="position:relative;padding:0;overflow:hidden">
+        <div id="topbar-avatar" style="width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;"></div>
       </div>
     </div>
   </div>
@@ -348,20 +393,13 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); font-family:
 
   <!-- Route replay bar (shown when active) -->
   <div id="route-bar">
-    <div id="route-pill" onclick="openRouteModal()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;color:var(--accent)"><path d="M3 12h18M3 6l9-3 9 3M3 18l9 3 9-3"/></svg>
-      <span id="route-label">选择路线回放</span>
-      <span id="route-clear" onclick="clearRoute(event)">✕ 清除</span>
-    </div>
-  </div>
-
-  <!-- Debug switcher -->
-  <div id="debug-bar" style="position:absolute;top:calc(var(--safe-top) + 80px);right:16px;z-index:50;">
-    <button onclick="toggleDebugPanel()" style="font-size:11px;padding:5px 10px;border-radius:99px;background:var(--surface);border:1px solid var(--border2);color:var(--text2);cursor:pointer;font-family:inherit;box-shadow:0 2px 8px rgba(0,0,0,0.12)">🧪 测试</button>
-    <div id="debug-panel" style="display:none;position:absolute;top:34px;right:0;background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:10px;box-shadow:0 4px 16px rgba(0,0,0,0.15);min-width:180px;">
-      <div style="font-size:10px;color:var(--text3);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">切换用户身份</div>
-      <div id="debug-users" style="display:flex;flex-direction:column;gap:5px;margin-bottom:8px"></div>
-      <button onclick="addDebugUser()" style="width:100%;font-size:11px;padding:6px 10px;border-radius:8px;background:var(--surface2);border:1px solid var(--border2);color:var(--text2);cursor:pointer;font-family:inherit">+ 添加测试用户</button>
+    <div id="route-pill">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;color:var(--accent);flex-shrink:0"><path d="M3 17c3-3 6 3 9 0s6-3 9 0"/><path d="M3 11c3-3 6 3 9 0s6-3 9 0"/></svg>
+      <span id="route-label" style="flex:1;font-size:13px;color:var(--text2)" onclick="openRouteModal()">路线回放中…</span>
+      <div onclick="clearRoute(event)" style="display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:99px;background:var(--surface2);border:1px solid var(--border2);cursor:pointer;font-size:12px;color:var(--text);flex-shrink:0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:12px;height:12px"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        退出回放
+      </div>
     </div>
   </div>
 
@@ -610,7 +648,33 @@ const COLORS = [
   { id:'rose',      hex:'#E8799A', name:'玫瑰红' },
   { id:'sky',       hex:'#85CFF5', name:'晴空蓝' },
 ];
-const MAP_ICONS = ['🌸','🌼','🍓','🧁','🍵','☕','🍰','🧇','🌈','⭐','🦋','🐱','🐻','🐰','🦊','🐼','💎','🎀','🎈','🎵','🌙','🌺','🍒','🍑'];
+const MAP_ICONS = [
+  { id:'cherry',  svg:'<svg viewBox="0 0 32 32" fill="none"><circle cx="10" cy="22" r="6" fill="#F4A7B9"/><circle cx="22" cy="22" r="6" fill="#E8799A"/><path d="M10 16 Q16 8 22 16" stroke="#6BAE8A" stroke-width="2" fill="none"/><circle cx="16" cy="7" r="2" fill="#6BAE8A"/></svg>' },
+  { id:'flower',  svg:'<svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="4" fill="#F7E07A"/><circle cx="16" cy="8" r="4" fill="#F4A7B9"/><circle cx="22" cy="11" r="4" fill="#F9C89B"/><circle cx="22" cy="21" r="4" fill="#CBA8E8"/><circle cx="16" cy="24" r="4" fill="#A9B8F0"/><circle cx="10" cy="21" r="4" fill="#8FDCC0"/><circle cx="10" cy="11" r="4" fill="#F4A7B9"/></svg>' },
+  { id:'star',    svg:'<svg viewBox="0 0 32 32" fill="none"><path d="M16 4l3 7h7l-5.5 4.5 2 7.5L16 19l-6.5 4 2-7.5L6 11h7z" fill="#F7E07A" stroke="#E8C84A" stroke-width="1"/></svg>' },
+  { id:'heart',   svg:'<svg viewBox="0 0 32 32" fill="none"><path d="M16 27s-11-7-11-14a6 6 0 0 1 11-4 6 6 0 0 1 11 4c0 7-11 14-11 14z" fill="#E8799A"/></svg>' },
+  { id:'cat',     svg:'<svg viewBox="0 0 32 32" fill="none"><ellipse cx="16" cy="19" rx="10" ry="8" fill="#F9C89B"/><path d="M8 14 Q6 8 10 10" stroke="#F9C89B" stroke-width="3" stroke-linecap="round"/><path d="M24 14 Q26 8 22 10" stroke="#F9C89B" stroke-width="3" stroke-linecap="round"/><circle cx="13" cy="19" r="1.5" fill="#7a6060"/><circle cx="19" cy="19" r="1.5" fill="#7a6060"/><path d="M14 22 Q16 24 18 22" stroke="#E8799A" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>' },
+  { id:'ribbon',  svg:'<svg viewBox="0 0 32 32" fill="none"><path d="M16 16 Q8 10 6 14 Q4 18 16 16z" fill="#CBA8E8"/><path d="M16 16 Q24 10 26 14 Q28 18 16 16z" fill="#E8799A"/><circle cx="16" cy="16" r="3" fill="#F7E07A"/><path d="M16 16 Q8 22 6 18 Q4 14 16 16z" fill="#E8799A"/><path d="M16 16 Q24 22 26 18 Q28 14 16 16z" fill="#CBA8E8"/></svg>' },
+  { id:'gem',     svg:'<svg viewBox="0 0 32 32" fill="none"><path d="M10 12 L16 6 L22 12 L16 26z" fill="#A9B8F0"/><path d="M10 12 L22 12 L16 26z" fill="#7A9FE8"/><path d="M10 12 L16 6 L22 12z" fill="#CBA8E8"/></svg>' },
+  { id:'moon',    svg:'<svg viewBox="0 0 32 32" fill="none"><path d="M20 8 A10 10 0 1 0 20 24 A7 7 0 1 1 20 8z" fill="#F7E07A"/><circle cx="22" cy="12" r="1.5" fill="#F9C89B"/><circle cx="25" cy="17" r="1" fill="#F9C89B"/></svg>' },
+  { id:'rainbow', svg:'<svg viewBox="0 0 32 32" fill="none"><path d="M4 22 A12 12 0 0 1 28 22" stroke="#E8799A" stroke-width="2.5" fill="none"/><path d="M7 22 A9 9 0 0 1 25 22" stroke="#F9C89B" stroke-width="2.5" fill="none"/><path d="M10 22 A6 6 0 0 1 22 22" stroke="#F7E07A" stroke-width="2.5" fill="none"/><path d="M13 22 A3 3 0 0 1 19 22" stroke="#8FDCC0" stroke-width="2.5" fill="none"/></svg>' },
+  { id:'cake',    svg:'<svg viewBox="0 0 32 32" fill="none"><rect x="6" y="16" width="20" height="11" rx="2" fill="#F4A7B9"/><rect x="9" y="12" width="14" height="7" rx="1" fill="#CBA8E8"/><rect x="12" y="9" width="8" height="5" rx="1" fill="#A9B8F0"/><line x1="16" y1="6" x2="16" y2="9" stroke="#F7E07A" stroke-width="2"/><circle cx="16" cy="5" r="2" fill="#F9C89B"/></svg>' },
+  { id:'tulip',   svg:'<svg viewBox="0 0 32 32" fill="none"><path d="M16 22 Q10 18 10 12 Q10 7 16 9 Q22 7 22 12 Q22 18 16 22z" fill="#E8799A"/><path d="M16 22 L16 28" stroke="#6BAE8A" stroke-width="2.5" stroke-linecap="round"/><path d="M16 25 Q12 23 11 20" stroke="#6BAE8A" stroke-width="2" fill="none" stroke-linecap="round"/></svg>' },
+  { id:'mushroom',svg:'<svg viewBox="0 0 32 32" fill="none"><path d="M6 18 Q6 8 16 8 Q26 8 26 18z" fill="#E8799A"/><circle cx="12" cy="14" r="2.5" fill="#fff" opacity="0.7"/><circle cx="20" cy="13" r="2" fill="#fff" opacity="0.7"/><circle cx="16" cy="16" r="1.5" fill="#fff" opacity="0.7"/><rect x="12" y="18" width="8" height="7" rx="2" fill="#F9C89B"/></svg>' },
+  { id:'butterfly',svg:'<svg viewBox="0 0 32 32" fill="none"><path d="M16 16 Q8 8 5 12 Q3 16 8 18 Q12 20 16 16z" fill="#CBA8E8"/><path d="M16 16 Q24 8 27 12 Q29 16 24 18 Q20 20 16 16z" fill="#A9B8F0"/><path d="M16 16 Q9 18 7 22 Q8 26 13 24 Q15 22 16 16z" fill="#E8799A"/><path d="M16 16 Q23 18 25 22 Q24 26 19 24 Q17 22 16 16z" fill="#F4A7B9"/><circle cx="16" cy="16" r="1.5" fill="#5a586a"/></svg>' },
+  { id:'bubble',  svg:'<svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="10" fill="none" stroke="#A9B8F0" stroke-width="2"/><circle cx="11" cy="12" r="2" fill="#A9B8F0" opacity="0.5"/><circle cx="10" cy="10" r="1" fill="#fff"/><circle cx="22" cy="20" r="1.5" fill="#A9B8F0" opacity="0.4"/></svg>' },
+  { id:'latte',   svg:'<svg viewBox="0 0 32 32" fill="none"><path d="M8 12 L10 26 Q10 28 16 28 Q22 28 22 26 L24 12z" fill="#F9C89B"/><rect x="7" y="10" width="18" height="4" rx="2" fill="#E8C49B"/><path d="M11 16 Q16 14 21 16" stroke="#fff" stroke-width="1.5" fill="none" opacity="0.6"/><path d="M12 19 Q16 17 20 19" stroke="#fff" stroke-width="1" fill="none" opacity="0.4"/></svg>' },
+  { id:'bunny',   svg:'<svg viewBox="0 0 32 32" fill="none"><ellipse cx="16" cy="20" rx="8" ry="7" fill="#F4A7B9"/><ellipse cx="11" cy="12" rx="3" ry="6" fill="#F4A7B9"/><ellipse cx="21" cy="12" rx="3" ry="6" fill="#F4A7B9"/><ellipse cx="11" cy="11" rx="1.5" ry="4" fill="#E8799A"/><ellipse cx="21" cy="11" rx="1.5" ry="4" fill="#E8799A"/><circle cx="14" cy="21" r="1.5" fill="#7a6060"/><circle cx="18" cy="21" r="1.5" fill="#7a6060"/><path d="M15 23 Q16 24.5 17 23" stroke="#E8799A" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>' },
+  { id:'cloud',   svg:'<svg viewBox="0 0 32 32" fill="none"><path d="M7 22 Q4 22 4 18 Q4 14 8 14 Q9 10 13 10 Q15 7 19 8 Q23 7 24 11 Q28 11 28 16 Q28 22 22 22z" fill="#A9B8F0"/><path d="M10 22 L12 28 M16 22 L16 28 M22 22 L20 28" stroke="#85CFF5" stroke-width="2" stroke-linecap="round"/></svg>' },
+  { id:'peach',   svg:'<svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="18" r="10" fill="#F9C89B"/><path d="M16 8 Q16 6 14 5" stroke="#6BAE8A" stroke-width="2" stroke-linecap="round"/><path d="M16 8 Q20 5 22 8" stroke="#6BAE8A" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M12 14 Q16 22 20 14" stroke="#E8799A" stroke-width="1.5" fill="none" opacity="0.6"/></svg>' },
+  { id:'paw',     svg:'<svg viewBox="0 0 32 32" fill="none"><ellipse cx="16" cy="20" rx="7" ry="6" fill="#CBA8E8"/><circle cx="10" cy="13" r="3" fill="#CBA8E8"/><circle cx="22" cy="13" r="3" fill="#CBA8E8"/><circle cx="16" cy="11" r="3" fill="#CBA8E8"/><circle cx="13" cy="21" r="1.5" fill="#fff" opacity="0.6"/><circle cx="19" cy="21" r="1.5" fill="#fff" opacity="0.6"/><circle cx="16" cy="23" r="1.5" fill="#fff" opacity="0.6"/></svg>' },
+  { id:'music',   svg:'<svg viewBox="0 0 32 32" fill="none"><path d="M13 24 L13 10 L25 8 L25 21" stroke="#E8799A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="11" cy="24" r="3" fill="#E8799A"/><circle cx="23" cy="21" r="3" fill="#F4A7B9"/></svg>' },
+  { id:'planet',  svg:'<svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="8" fill="#A9B8F0"/><circle cx="13" cy="13" r="2" fill="#fff" opacity="0.3"/><ellipse cx="16" cy="16" rx="14" ry="5" stroke="#CBA8E8" stroke-width="2" fill="none" transform="rotate(-20 16 16)"/></svg>' },
+  { id:'icecream',svg:'<svg viewBox="0 0 32 32" fill="none"><path d="M12 18 L14 28 Q16 30 18 28 L20 18z" fill="#F9C89B"/><circle cx="13" cy="14" r="5" fill="#F4A7B9"/><circle cx="19" cy="14" r="5" fill="#8FDCC0"/><circle cx="16" cy="11" r="5" fill="#F7E07A"/><circle cx="14" cy="10" r="1" fill="#fff" opacity="0.6"/></svg>' },
+  { id:'crown',   svg:'<svg viewBox="0 0 32 32" fill="none"><path d="M6 22 L8 12 L13 18 L16 10 L19 18 L24 12 L26 22z" fill="#F7E07A" stroke="#E8C84A" stroke-width="1"/><rect x="6" y="22" width="20" height="4" rx="1" fill="#F9C89B"/><circle cx="16" cy="23" r="1.5" fill="#E8799A"/><circle cx="10" cy="23" r="1.5" fill="#CBA8E8"/><circle cx="22" cy="23" r="1.5" fill="#A9B8F0"/></svg>' },
+  { id:'magic',   svg:'<svg viewBox="0 0 32 32" fill="none"><path d="M10 22 L22 10" stroke="#CBA8E8" stroke-width="2.5" stroke-linecap="round"/><path d="M22 10 L24 6 L26 10 L22 10z" fill="#F7E07A"/><circle cx="8" cy="10" r="2" fill="#E8799A"/><circle cx="24" cy="24" r="2" fill="#A9B8F0"/><circle cx="6" cy="20" r="1" fill="#F7E07A"/><circle cx="26" cy="14" r="1" fill="#8FDCC0"/><circle cx="14" cy="6" r="1.5" fill="#F4A7B9"/></svg>' },
+  { id:'compass', svg:'<svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="11" stroke="var(--border2)" stroke-width="1.5" fill="none"/><path d="M16 8 L18 16 L16 14 L14 16z" fill="#E8799A"/><path d="M16 24 L14 16 L16 18 L18 16z" fill="#A9B8F0"/><circle cx="16" cy="16" r="2" fill="var(--text)"/></svg>' },
+];
 
 let myId = localStorage.getItem('yinji_uid');
 if (!myId) { myId = 'u_' + Date.now(); localStorage.setItem('yinji_uid', myId); }
@@ -636,7 +700,7 @@ let currentWeather = null;
 
 let selectedCompanions = new Set();
 let setupSelectedColor = COLORS[7];
-let setupSelectedIcon  = MAP_ICONS[0];
+let setupSelectedIcon  = MAP_ICONS[0].id;
 
 // ═══════════════════════════════════════
 // BOOT
@@ -659,7 +723,7 @@ async function boot() {
 
   document.getElementById('loading').classList.add('hide');
   if (!allUsers[myId]) {
-    document.getElementById('profile-setup').classList.remove('hidden');
+    document.getElementById('login-screen').classList.remove('hidden');
   } else {
     updateTopbarAvatar();
     buildFilterBar();
@@ -721,9 +785,45 @@ function renderColorGrid(cid, selId, onSel) {
       <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" style="width:16px;height:16px"><path d="M5 12l5 5 9-9"/></svg>
     </div>`).join('');
 }
-function renderIconGrid(cid, selIcon, onSel) {
+function renderIconGrid(cid, selIconId, onSel) {
   document.getElementById(cid).innerHTML = MAP_ICONS.map(ic => `
-    <div class="icon-option ${ic===selIcon?'selected':''}" onclick="(${onSel.toString()})('${ic}')">${ic}</div>`).join('');
+    <div class="icon-option ${ic.id===selIconId?'selected':''}" onclick="(${onSel.toString()})('${ic.id}')" title="${ic.id}">
+      ${ic.svg}
+    </div>`).join('');
+}
+
+function getIconSvg(id) {
+  return MAP_ICONS.find(i=>i.id===id)?.svg || MAP_ICONS[0].svg;
+}
+
+function switchLoginTab(tab) {
+  document.getElementById('tab-register').classList.toggle('active', tab==='register');
+  document.getElementById('tab-login').classList.toggle('active', tab==='login');
+  document.getElementById('register-form').style.display = tab==='register' ? 'block' : 'none';
+  document.getElementById('login-form').style.display    = tab==='login'    ? 'block' : 'none';
+}
+
+async function doLogin() {
+  const name = document.getElementById('login-name').value.trim();
+  const pass = document.getElementById('login-password').value;
+  if (!name || !pass) { showToast('请填写昵称和密码'); return; }
+  const hash = await hashPass(pass);
+  try {
+    const users = await supa.get('users', 'select=*');
+    const user = (users||[]).find(u => u.name === name && u.password_hash === hash);
+    if (!user) { showToast('昵称或密码不正确 🙅'); return; }
+    myId = user.id;
+    localStorage.setItem('yinji_uid', myId);
+    allUsers[myId] = user;
+    document.getElementById('login-screen').classList.add('hidden');
+    updateTopbarAvatar(); buildFilterBar(); renderDebugBar();
+    showToast('欢迎回来，' + user.name + ' 🎉');
+  } catch(e) { showToast('登录失败，请重试'); console.error(e); }
+}
+
+async function hashPass(pass) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pass));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
 function initSetup() {
@@ -732,13 +832,16 @@ function initSetup() {
     renderColorGrid('setup-color-grid', id, arguments.callee);
     document.getElementById('setup-avatar').style.background = hex;
   });
-  renderIconGrid('setup-icon-grid', setupSelectedIcon, (ic) => {
-    setupSelectedIcon = ic;
-    renderIconGrid('setup-icon-grid', ic, arguments.callee);
-    document.getElementById('setup-avatar').textContent = ic;
+  renderIconGrid('setup-icon-grid', setupSelectedIcon, (id) => {
+    setupSelectedIcon = id;
+    renderIconGrid('setup-icon-grid', id, arguments.callee);
+    const av = document.getElementById('setup-avatar');
+    av.innerHTML = getIconSvg(id);
+    av.style.padding = '8px';
   });
   document.getElementById('setup-avatar').style.background = setupSelectedColor.hex;
-  document.getElementById('setup-avatar').textContent = setupSelectedIcon;
+  document.getElementById('setup-avatar').innerHTML = getIconSvg(setupSelectedIcon);
+  document.getElementById('setup-avatar').style.padding = '8px';
 }
 
 async function saveProfile() {
@@ -752,26 +855,27 @@ async function saveProfile() {
     // upsert fallback
     try { await supa.patch('users', `id=eq.${myId}`, user); allUsers[myId] = {...user}; } catch(e2) {}
   }
-  document.getElementById('profile-setup').classList.add('hidden');
+  document.getElementById('login-screen').classList.add('hidden');
   updateTopbarAvatar(); buildFilterBar(); renderDebugBar();
 }
 
 function openProfileModal() {
   const me = getMe(); if (!me) return;
   document.getElementById('profile-name-input').value = me.name;
-  let pColor = me.color_id || me.colorId, pIcon = me.icon || MAP_ICONS[0];
+  let pColor = me.color_id || me.colorId, pIcon = me.icon || MAP_ICONS[0].id;
   renderColorGrid('profile-color-grid', pColor, (id,hex) => {
     pColor = id;
     renderColorGrid('profile-color-grid', id, arguments.callee);
     document.getElementById('profile-modal-avatar').style.background = hex;
   });
-  renderIconGrid('profile-icon-grid', pIcon, (ic) => {
-    pIcon = ic;
-    renderIconGrid('profile-icon-grid', ic, arguments.callee);
-    document.getElementById('profile-modal-avatar').textContent = ic;
+  renderIconGrid('profile-icon-grid', pIcon, (id) => {
+    pIcon = id;
+    renderIconGrid('profile-icon-grid', id, arguments.callee);
+    const av = document.getElementById('profile-modal-avatar');
+    av.innerHTML = getIconSvg(id); av.style.padding = '8px';
   });
   document.getElementById('profile-modal-avatar').style.background = me.color;
-  document.getElementById('profile-modal-avatar').textContent = me.icon || MAP_ICONS[0];
+  const pmAv = document.getElementById('profile-modal-avatar'); pmAv.innerHTML = getIconSvg(me.icon||MAP_ICONS[0].id); pmAv.style.padding='8px';
   document.getElementById('profile-modal').classList.add('show');
 }
 
@@ -782,7 +886,7 @@ async function updateProfile() {
   const colorId = colorEl ? COLORS.find(c => colorEl.style.background.includes(c.hex.slice(1)))?.id || getMe()?.color_id : getMe()?.color_id;
   const color = COLORS.find(c=>c.id===colorId)?.hex || myColor();
   const iconEl = document.querySelector('#profile-icon-grid .icon-option.selected');
-  const icon = iconEl ? iconEl.textContent.trim() : (getMe()?.icon || MAP_ICONS[0]);
+  const icon = iconEl ? (iconEl.title || MAP_ICONS[0].id) : (getMe()?.icon || MAP_ICONS[0].id);
   const upd = { name, color, color_id: colorId, icon };
   try { await supa.patch('users', `id=eq.${myId}`, upd); } catch(e) {}
   allUsers[myId] = { ...getMe(), ...upd };
@@ -795,8 +899,8 @@ function closeProfileModal() { document.getElementById('profile-modal').classLis
 function updateTopbarAvatar() {
   const me = getMe(); if (!me) return;
   const el = document.getElementById('topbar-avatar');
-  el.style.background = me.color; el.style.fontSize = '15px';
-  el.textContent = me.icon || me.name[0];
+  el.style.background = me.color; el.style.padding = '6px';
+  el.innerHTML = getIconSvg(me.icon || MAP_ICONS[0].id);
 }
 
 // ═══════════════════════════════════════
@@ -929,7 +1033,7 @@ function renderNearbyList(places) {
         <div class="place-meta">${addr.split(',')[0]}${rating?' · ⭐ '+rating:''}</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px">
-        ${avatars.length?`<div style="display:flex">${avatars.map(u=>`<div class="avatar-mini" style="background:${u.color}">${u.icon||u.name[0]}</div>`).join('')}</div>`:''}
+        ${avatars.length?`<div style="display:flex">${avatars.map(u=>`<div class="avatar-mini" style="background:${u.color};padding:4px">${getIconSvg(u.icon||MAP_ICONS[0].id)}</div>`).join('')}</div>`:''}
         ${checkins.length?`<span style="font-size:11px;color:var(--text3)">${checkins.length}次</span>`:''}
         <div class="wish-add-icon ${isWished?'wished':''}" onclick="event.stopPropagation();toggleWish('${pid}','${esc(name)}','${esc(addr.split(',')[0])}','${icon}')" title="${isWished?'已加入心愿单':'加入心愿单'}">${isWished?'🤍':'🤍'}</div>
       </div>
@@ -1276,7 +1380,7 @@ function refreshMarkers() {
     const colors = visible.map(c=>allUsers[c.userId]?.color).filter(col=>{ if(!col||seen.has(col)) return false; seen.add(col); return true; }).slice(0,3);
     const c = checkins[0]; if (!c.lat) return;
     const firstUser = allUsers[visible[0]?.userId];
-    const mIcon = firstUser?.icon || visible[0]?.placeIcon || '📍';
+    const mIconSvg = firstUser ? '<span style="display:flex;width:20px;height:20px">'+getIconSvg(firstUser.icon||MAP_ICONS[0].id)+'</span>' : (visible[0]?.placeIcon||'📍');
     const div = document.createElement('div'); div.className='gmap-marker';
     div.innerHTML=`<div class="marker-dot" style="background:${colors[0]||'#E8799A'}">${visible.length>1?`<span style="font-size:11px;color:#fff;font-weight:600">${visible.length}</span>`:`<span style="font-size:16px;line-height:1">${mIcon}</span>`}</div><div class="marker-tail" style="background:${colors[0]||'#E8799A'}"></div>`;
     const overlay = new google.maps.OverlayView();
@@ -1349,10 +1453,10 @@ function renderFeed() {
       <span class="voice-duration">语音</span>
     </div>` : '';
     const weatherHtml = c.weatherIcon ? `<div class="weather-badge">${c.weatherIcon} ${c.weatherDesc} ${c.weatherTemp}°C</div>` : '';
-    const companionHtml = companions.length ? `<div style="display:flex;align-items:center;gap:5px;margin-top:6px"><span style="font-size:11px;color:var(--text3)">同行：</span>${companions.map(cu=>`<div class="avatar" style="width:22px;height:22px;font-size:12px;background:${cu.color}">${cu.icon||cu.name[0]}</div>`).join('')}<span style="font-size:12px;color:var(--text2)">${companions.map(cu=>cu.name).join('、')}</span></div>` : '';
+    const companionHtml = companions.length ? `<div style="display:flex;align-items:center;gap:5px;margin-top:6px"><span style="font-size:11px;color:var(--text3)">同行：</span>${companions.map(cu=>`<div class="avatar" style="width:22px;height:22px;padding:3px;background:${cu.color}">${getIconSvg(cu.icon||MAP_ICONS[0].id)}</div>`).join('')}<span style="font-size:12px;color:var(--text2)">${companions.map(cu=>cu.name).join('、')}</span></div>` : '';
     return `<div class="checkin-card">
       <div class="checkin-header">
-        <div class="avatar" style="background:${u.color}">${u.icon||u.name[0]}</div>
+        <div class="avatar" style="background:${u.color};padding:4px">${getIconSvg(u.icon||MAP_ICONS[0].id)}</div>
         <div class="checkin-who"><div class="checkin-name">${u.name}</div><div class="checkin-time">${formatTime(c.time)}</div></div>
         <span class="checkin-badge ${c.isDirect?'badge-direct':'badge-retro'}">${c.isDirect?'直接打卡':'补打'}</span>
       </div>
@@ -1400,11 +1504,11 @@ function openPlaceDetail(placeId, name, addr, icon) {
     const companions = (c.companions||[]).map(uid=>allUsers[uid]).filter(Boolean);
     const imgs = (c.images||[]).slice(0,2);
     return `<div style="display:flex;align-items:flex-start;gap:8px;padding:10px 0;border-bottom:1px solid var(--border)">
-      <div class="avatar" style="width:30px;height:30px;font-size:16px;flex-shrink:0;background:${u.color}">${u.icon||u.name[0]}</div>
+      <div class="avatar" style="width:30px;height:30px;padding:4px;flex-shrink:0;background:${u.color}">${getIconSvg(u.icon||MAP_ICONS[0].id)}</div>
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
           <span style="font-size:13px;font-weight:500">${u.name}</span>
-          ${companions.map(cu=>`<div class="avatar" style="width:18px;height:18px;font-size:11px;background:${cu.color}">${cu.icon||cu.name[0]}</div>`).join('')}
+          ${companions.map(cu=>`<div class="avatar" style="width:18px;height:18px;padding:2px;background:${cu.color}">${getIconSvg(cu.icon||MAP_ICONS[0].id)}</div>`).join('')}
           <span class="checkin-badge ${c.isDirect?'badge-direct':'badge-retro'}" style="font-size:10px">${c.isDirect?'直接':'补打'}</span>
         </div>
         <div style="font-size:11px;color:var(--text3);margin-top:2px">${formatTime(c.time)}</div>
@@ -1470,7 +1574,7 @@ function renderDebugBar() {
   const el=document.getElementById('debug-users'); if(!el) return;
   el.innerHTML = Object.entries(allUsers).map(([uid,u])=>`
     <div onclick="switchDebugUser('${uid}')" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;cursor:pointer;background:${uid===myId?'var(--accent-bg)':'transparent'}">
-      <span style="width:10px;height:10px;border-radius:50%;background:${u.color};flex-shrink:0"></span>
+      <span style="width:20px;height:20px;background:${u.color};border-radius:50%;padding:2px;display:flex;flex-shrink:0">${getIconSvg(u.icon||MAP_ICONS[0].id)}</span>
       <span style="font-size:12px;color:${uid===myId?'var(--accent)':'var(--text2)'};font-weight:${uid===myId?500:400}">${u.name}</span>
       ${uid===myId?'<span style="font-size:10px;color:var(--accent);margin-left:auto">当前 ✓</span>':''}
     </div>`).join('');
@@ -1689,11 +1793,15 @@ function playRoute() {
 
 function clearRoute(e) {
   if (e) e.stopPropagation();
-  routePolylines.forEach(p=>p.setMap(null)); routePolylines=[];
-  routeStopMarkers.forEach(m=>m.setMap(null)); routeStopMarkers=[];
-  document.getElementById('route-bar').style.display='none';
-  document.getElementById('filter-bar').style.display='flex';
+  routePolylines.forEach(p => p.setMap(null)); routePolylines = [];
+  routeStopMarkers.forEach(m => m.setMap(null)); routeStopMarkers = [];
+  document.getElementById('route-bar').style.display = 'none';
+  document.getElementById('filter-bar').style.display = 'flex';
+  document.getElementById('route-result').style.display = 'none';
   closeRouteModal();
+  // restore map to current location
+  map.panTo({ lat: myLat, lng: myLng });
+  map.setZoom(15);
 }
 
 // ═══════════════════════════════════════
