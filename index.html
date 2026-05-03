@@ -766,8 +766,10 @@ function subscribeRealtime() {
   });
   supa.realtime('wishlist', (event, record) => {
     if (!record) return;
-    if (event === 'INSERT') allWishlist.unshift(record);
-    else if (event === 'DELETE') allWishlist = allWishlist.filter(w => w.id !== record.id);
+    if (event === 'INSERT') {
+      // avoid duplicate if we already added it locally
+      if (!allWishlist.find(w => w.id === record.id)) allWishlist.unshift(record);
+    } else if (event === 'DELETE') allWishlist = allWishlist.filter(w => w.id !== record.id);
     refreshWishMarkers();
     if (document.getElementById('tab-wishlist').style.display !== 'none') renderWishlist();
   });
